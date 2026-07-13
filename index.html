@@ -3,316 +3,254 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Teleprompter · Reels & Entrevistas</title>
+  <title>Teleprompter · Studio MRB</title>
   <style>
+    /* ============================================================
+       Studio MRB — tokens de marca (monocromático + Urbanist)
+       ============================================================ */
+    @import url('https://fonts.googleapis.com/css2?family=Urbanist:wght@100;200;300;400;500;600;700&display=swap');
+
     :root {
-      --speed: 40;
-      --fs: 46px;
-      --lh: 1.5;
-      --width: 88%;
-      --bg: #000;
-      --fg: #f2f2f2;
-      --muted: #7a7a7a;
-      --accent: #ff4d4d;
-      --panel: rgba(18,18,20,.92);
-      --border: rgba(255,255,255,.12);
+      /* Absolutos y rampa slate */
+      --black:#000; --white:#fff;
+      --slate-950:#1c2329; --slate-900:#2e373d; --slate-700:#46535b;
+      --slate-600:#5e6e78; --slate-500:#788591; --slate-400:#9aa4ab;
+      --slate-300:#aeb6bb; --slate-200:#c7ccd0; --slate-100:#d9dcde;
+      --gray-50:#ededed; --gray-25:#f5f5f5;
+
+      --font: 'Urbanist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --font-serif: 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+
+      --tracking-label:.14em;
+      --shadow-md:0 8px 24px rgba(28,35,41,.10);
+      --shadow-lg:0 18px 48px rgba(28,35,41,.16);
+      --ease:cubic-bezier(.22,.61,.36,1);
+      --radius-lg:16px; --radius-pill:999px;
+
+      /* Tema claro (default — superficie de marca es papel/blanco) */
+      --bg:var(--white);
+      --fg:var(--slate-950);
+      --muted:#6b757c;
+      --faint:var(--slate-400);
+      --rule:rgba(0,0,0,.12);
+      --hairline:rgba(0,0,0,.16);
+
+      /* Ajustes en vivo */
+      --fs:44px; --lh:1.45; --width:90%; --readfont:var(--font);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      height: 100%;
-      overflow: hidden;
-      background: var(--bg);
-      color: var(--fg);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      -webkit-font-smoothing: antialiased;
+    /* Tema oscuro (negro puro: mejor para el cristal del teleprompter) */
+    #app.oscuro {
+      --bg:#000; --fg:#f4f4f4; --muted:rgba(255,255,255,.58);
+      --faint:rgba(255,255,255,.38); --rule:rgba(255,255,255,.16);
+      --hairline:rgba(255,255,255,.22);
     }
 
-    /* ---------- Layout general ---------- */
-    #app { height: 100%; display: flex; flex-direction: column; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    html,body { height:100%; overflow:hidden; background:var(--bg); color:var(--fg);
+      font-family:var(--font); -webkit-font-smoothing:antialiased; }
 
-    /* ---------- Barra de control superior ---------- */
-    #topbar {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 14px;
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(12px);
-      z-index: 40; flex-wrap: wrap;
-      transition: opacity .35s, transform .35s;
-    }
-    #app.playing.immersive #topbar { opacity: 0; transform: translateY(-100%); pointer-events: none; }
+    #app { height:100%; display:flex; flex-direction:column; background:var(--bg); color:var(--fg); }
 
-    .group { display: flex; align-items: center; gap: 6px; }
-    .sep { width: 1px; height: 26px; background: var(--border); margin: 0 4px; }
+    /* ---------- Marca (logo esquina) ---------- */
+    #brand { position:absolute; top:16px; left:22px; z-index:35; height:20px;
+      opacity:.5; pointer-events:none; transition:opacity .3s; }
+    #brand svg { height:100%; width:auto; display:block; }
+    #brand svg path, #brand svg rect, #brand svg circle { fill:var(--fg); }
+    #app.playing.immersive #brand { opacity:.18; }
 
-    button, .btn {
-      font: inherit; color: var(--fg);
-      background: rgba(255,255,255,.07);
-      border: 1px solid var(--border);
-      border-radius: 9px; padding: 8px 12px;
-      cursor: pointer; user-select: none;
-      display: inline-flex; align-items: center; gap: 6px;
-      transition: background .15s, border-color .15s, transform .05s;
-      white-space: nowrap; font-size: 13px;
-    }
-    button:hover, .btn:hover { background: rgba(255,255,255,.14); }
-    button:active { transform: scale(.96); }
-    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-    button.primary:hover { filter: brightness(1.1); }
-    button.on { background: rgba(255,77,77,.22); border-color: var(--accent); }
-    button.icon { padding: 8px 10px; }
+    /* ---------- Escenario / scroll ---------- */
+    #stage { position:relative; flex:1 1 auto; overflow:hidden; }
+    #scroller { position:absolute; inset:0; overflow-y:scroll; scrollbar-width:none; }
+    #scroller::-webkit-scrollbar { display:none; }
 
-    label.field { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
-    input[type=range] { width: 120px; accent-color: var(--accent); cursor: pointer; }
-    .val { min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; color: var(--fg); font-size: 13px; }
+    #script { max-width:var(--width); margin:0 auto; padding:52vh 5vw 86vh;
+      font-family:var(--readfont); font-size:var(--fs); line-height:var(--lh); }
 
-    .spacer { flex: 1 1 auto; }
+    #app.mirror-h #script { transform:scaleX(-1); }
 
-    /* ---------- Zona del prompter ---------- */
-    #stage { position: relative; flex: 1 1 auto; overflow: hidden; }
+    /* ---------- Pieza ---------- */
+    .pieza { margin:0 0 2.4em; scroll-margin-top:34vh; }
+    .pieza-head { border-top:2px solid var(--fg); padding-top:.5em; margin-bottom:1.1em; }
+    .kicker { font-size:.34em; font-weight:600; letter-spacing:var(--tracking-label);
+      text-transform:uppercase; color:var(--faint); display:flex; align-items:center; gap:.9em; }
+    .kicker .estado { display:inline-flex; align-items:center; gap:.5em; }
+    .dot { width:.7em; height:.7em; border-radius:50%; border:1.5px solid var(--muted); display:inline-block; }
+    .dot.full { background:var(--muted); }
+    .dot.half { background:linear-gradient(90deg,var(--muted) 50%, transparent 50%); }
+    .pieza-titulo { font-size:.72em; font-weight:500; line-height:1.15; letter-spacing:-.01em;
+      margin:.35em 0 .3em; color:var(--fg); }
+    .pieza-meta { font-size:.3em; font-weight:600; letter-spacing:var(--tracking-label);
+      text-transform:uppercase; color:var(--muted); display:flex; flex-wrap:wrap; gap:.4em 1em; }
+    .pieza-meta .sepdot::before { content:"·"; margin-right:1em; color:var(--faint); }
 
-    #scroller {
-      position: absolute; inset: 0;
-      overflow-y: scroll;
-      scrollbar-width: none;
-      scroll-behavior: auto;
-    }
-    #scroller::-webkit-scrollbar { display: none; }
+    /* ---------- Bloques ---------- */
+    .bloque { margin:0 0 1em; scroll-margin-top:38vh; }
+    .b-label { font-size:.3em; font-weight:600; letter-spacing:var(--tracking-label);
+      text-transform:uppercase; color:var(--muted); margin-bottom:.35em; display:flex; gap:.7em; align-items:center; }
+    .b-label .slidechip { border:1px solid var(--hairline); border-radius:var(--radius-pill);
+      padding:.15em .7em; font-size:.85em; color:var(--faint); }
+    .b-guia { font-family:var(--font); font-size:.5em; font-weight:300; font-style:italic;
+      color:var(--muted); margin-bottom:.4em; padding-left:.9em; border-left:2px solid var(--rule); }
+    .b-texto { font-weight:500; color:var(--fg); }
 
-    #script {
-      max-width: var(--width);
-      margin: 0 auto;
-      padding: 60vh 4vw 90vh;
-      font-family: Georgia, "Times New Roman", "Iowan Old Style", serif;
-      font-size: var(--fs);
-      line-height: var(--lh);
-      letter-spacing: .3px;
-    }
+    /* Hook: la apertura, con regla superior fina (línea "sistema") */
+    .b-hook { padding-top:.15em; }
+    .b-hook .b-texto { font-weight:600; }
 
-    /* Mirror para teleprompter físico (cristal) */
-    #app.mirror-h #script { transform: scaleX(-1); }
-    #app.mirror-v #script { transform: scaleY(-1); }
-    #app.mirror-h.mirror-v #script { transform: scale(-1, -1); }
+    /* CTA: la tarjeta invertida de marca */
+    .b-cta { background:var(--fg); color:var(--bg); border-radius:var(--radius-lg);
+      padding:.7em .85em; box-shadow:var(--shadow-md); }
+    .b-cta .b-label { color:rgba(127,127,127,.9); }
+    #app.oscuro .b-cta .b-label { color:rgba(0,0,0,.5); }
+    .b-cta .b-texto { color:var(--bg); font-weight:600; }
+    .b-cta .cta-info { font-size:.36em; font-weight:600; letter-spacing:var(--tracking-label);
+      text-transform:uppercase; margin-top:.6em; opacity:.7; }
 
-    /* ---------- Bloques del guión ---------- */
-    .bloque { margin: 0 0 .85em; scroll-margin-top: 40vh; }
-    .bloque.activo { }
+    /* Dirección / nota de escena (no se lee) */
+    .b-direccion .b-texto, .b-nota .b-texto { font-family:var(--font); font-weight:300; font-style:italic;
+      font-size:.66em; color:var(--muted); border:1px dashed var(--hairline); border-radius:12px;
+      padding:.6em .8em; }
 
-    .b-titulo {
-      text-align: center; font-weight: 700;
-      font-size: 1.12em; letter-spacing: 1px; text-transform: uppercase;
-      color: var(--fg); margin: 1.4em 0 .7em; opacity: .95;
-    }
-    .b-titulo::after {
-      content: ""; display: block; width: 70px; height: 3px;
-      background: var(--accent); margin: .35em auto 0; border-radius: 2px;
-    }
+    /* ---------- Guías de lectura ---------- */
+    #readline { position:absolute; left:0; right:0; top:38%; height:0;
+      border-top:2px solid var(--fg); opacity:.28; z-index:20; display:none; pointer-events:none; }
+    #readline::before,#readline::after { content:""; position:absolute; top:-6px; border:6px solid transparent; }
+    #readline::before { left:0; border-left-color:var(--fg); }
+    #readline::after { right:0; border-right-color:var(--fg); }
+    #app.readline #readline { display:block; }
 
-    .b-gancho {
-      font-weight: 700; font-size: 1.15em; color: var(--fg);
-      background: linear-gradient(90deg, rgba(255,77,77,.16), transparent);
-      border-left: 5px solid var(--accent);
-      padding: .35em .6em; border-radius: 6px;
-    }
-    .b-gancho .tag { color: var(--accent); }
+    #vignette { position:absolute; inset:0; pointer-events:none; z-index:10; display:none;
+      background:linear-gradient(to bottom,var(--bg) 0%,transparent 20%,transparent 80%,var(--bg) 100%); opacity:.9; }
+    #app.focus #vignette { display:block; }
 
-    .locutor { display: block; font-family: -apple-system, sans-serif;
-      font-size: .5em; letter-spacing: 2px; text-transform: uppercase;
-      font-weight: 700; margin-bottom: .25em; opacity: .85; }
-
-    .b-entrevistador { }
-    .b-entrevistador .locutor { color: #56b6ff; }
-    .b-entrevistador .cuerpo { color: #cfe6ff; font-style: italic; }
-
-    .b-entrevistado { }
-    .b-entrevistado .locutor { color: #7CFFB2; }
-    .b-entrevistado .cuerpo { color: var(--fg); }
-
-    .b-narracion .cuerpo { color: var(--fg); }
-    .b-narracion .locutor { color: var(--muted); }
-
-    .b-direccion {
-      font-family: -apple-system, sans-serif; font-size: .62em;
-      color: var(--muted); font-style: italic;
-      border: 1px dashed var(--border); border-radius: 8px;
-      padding: .5em .7em; margin: .6em auto; text-align: center;
-      max-width: 80%; opacity: .8;
-    }
-    .b-direccion::before { content: "🎬 "; }
-
-    .b-broll {
-      font-family: -apple-system, sans-serif; font-size: .55em;
-      color: #ffd27a; text-transform: uppercase; letter-spacing: 1px;
-      border-left: 3px solid #ffd27a; background: rgba(255,210,122,.08);
-      padding: .4em .7em; border-radius: 4px; margin: .6em 0; opacity: .85;
-    }
-    .b-broll::before { content: "🎥 B-ROLL · "; opacity: .7; }
-
-    .b-cta {
-      text-align: center; font-weight: 700; font-size: 1.1em;
-      color: #fff; background: var(--accent);
-      padding: .5em .7em; border-radius: 12px; margin: 1em auto;
-      max-width: 85%;
-    }
-    .b-cta::before { content: "👉 "; }
-
-    .b-pausa {
-      text-align: center; color: var(--muted); font-size: .5em;
-      letter-spacing: 4px; margin: .8em 0; opacity: .6;
-    }
-
-    /* ---------- Línea de lectura / foco ---------- */
-    #readline {
-      position: absolute; left: 0; right: 0; top: 40%;
-      height: 0; border-top: 2px solid var(--accent);
-      box-shadow: 0 0 18px rgba(255,77,77,.5);
-      pointer-events: none; z-index: 20; display: none;
-    }
-    #readline::before, #readline::after {
-      content: ""; position: absolute; top: -7px;
-      border: 7px solid transparent;
-    }
-    #readline::before { left: 0; border-left-color: var(--accent); }
-    #readline::after { right: 0; border-right-color: var(--accent); }
-    #app.readline #readline { display: block; }
-
-    /* Viñeta oscura para foco */
-    #vignette {
-      position: absolute; inset: 0; pointer-events: none; z-index: 10;
-      display: none;
-      background: linear-gradient(to bottom,
-        var(--bg) 0%, transparent 22%, transparent 78%, var(--bg) 100%);
-      opacity: .85;
-    }
-    #app.focus #vignette { display: block; }
-
-    /* Barra de progreso */
-    #progress {
-      position: absolute; left: 0; bottom: 0; height: 4px;
-      background: var(--accent); width: 0%; z-index: 30;
-      box-shadow: 0 0 10px var(--accent); transition: width .1s linear;
-    }
+    #progress { position:absolute; left:0; top:0; height:3px; background:var(--fg);
+      width:0%; z-index:30; opacity:.85; }
 
     /* ---------- Cuenta regresiva ---------- */
-    #countdown {
-      position: absolute; inset: 0; z-index: 60;
-      display: none; align-items: center; justify-content: center;
-      background: rgba(0,0,0,.7); font-size: 22vh; font-weight: 800;
-      color: var(--accent); font-variant-numeric: tabular-nums;
-    }
-    #countdown.show { display: flex; }
+    #countdown { position:absolute; inset:0; z-index:60; display:none; align-items:center;
+      justify-content:center; background:rgba(0,0,0,.72); color:#fff; font-weight:200;
+      font-size:26vh; letter-spacing:.04em; font-variant-numeric:tabular-nums; }
+    #countdown.show { display:flex; }
 
-    /* ---------- Panel de guión (JSON) ---------- */
-    #drawer {
-      position: absolute; top: 0; right: 0; bottom: 0; width: min(560px, 92vw);
-      background: var(--panel); border-left: 1px solid var(--border);
-      backdrop-filter: blur(14px); z-index: 50;
-      transform: translateX(100%); transition: transform .3s ease;
-      display: flex; flex-direction: column;
-    }
-    #drawer.open { transform: translateX(0); }
-    .drawer-head { display: flex; align-items: center; gap: 10px;
-      padding: 14px 16px; border-bottom: 1px solid var(--border); }
-    .drawer-head h2 { font-size: 15px; font-weight: 700; }
-    .drawer-tabs { display: flex; gap: 6px; padding: 10px 16px 0; }
-    .drawer-tabs button { font-size: 12px; padding: 6px 10px; }
-    .drawer-tabs button.active { background: rgba(255,77,77,.2); border-color: var(--accent); }
-    .drawer-body { flex: 1; overflow: auto; padding: 14px 16px; }
-    .drawer-body .pane { display: none; }
-    .drawer-body .pane.active { display: block; }
+    /* ---------- Barra de control (invert de marca, siempre oscura) ---------- */
+    #bar { display:flex; align-items:center; gap:8px; padding:12px 18px; flex-wrap:wrap;
+      background:var(--slate-950); color:#fff; border-top:1px solid rgba(255,255,255,.08);
+      z-index:40; transition:transform .35s var(--ease), opacity .35s; }
+    #app.playing.immersive #bar { transform:translateY(105%); opacity:0; pointer-events:none; }
 
-    textarea {
-      width: 100%; height: 46vh; resize: vertical;
-      background: #0c0c0e; color: #d6d6d6; border: 1px solid var(--border);
-      border-radius: 10px; padding: 12px;
-      font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px;
-      line-height: 1.5; tab-size: 2;
-    }
-    .drawer-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-    .hint { color: var(--muted); font-size: 12px; line-height: 1.6; margin-top: 10px; }
-    .hint code { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 4px;
-      color: #ffd27a; font-size: 11.5px; }
-    #jsonError { color: var(--accent); font-size: 12px; margin-top: 8px; min-height: 16px; white-space: pre-wrap; }
+    button,.btn { font:inherit; font-size:13px; font-weight:500; color:#fff;
+      background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14);
+      border-radius:var(--radius-pill); padding:9px 15px; cursor:pointer; user-select:none;
+      display:inline-flex; align-items:center; gap:7px; white-space:nowrap;
+      transition:background .15s,border-color .15s,transform .05s; }
+    button:hover,.btn:hover { background:rgba(255,255,255,.16); }
+    button:active { transform:scale(.97); }
+    button.primary { background:#fff; color:#000; border-color:#fff; font-weight:600; }
+    button.primary:hover { background:#e9e9e9; }
+    button.on { background:rgba(255,255,255,.9); color:#000; border-color:#fff; }
+    button.ghost { background:transparent; }
 
-    .schema-block { font-size: 12.5px; line-height: 1.7; }
-    .schema-block h3 { font-size: 13px; margin: 14px 0 6px; color: var(--fg); }
-    .schema-block .row { display: flex; gap: 8px; margin: 3px 0; }
-    .schema-block .k { color: #ffd27a; font-family: Menlo, monospace; min-width: 128px; }
-    .schema-block .d { color: var(--muted); }
-    .kbd-list { columns: 2; font-size: 12px; color: var(--muted); line-height: 1.9; }
-    .kbd-list b { color: var(--fg); font-family: Menlo, monospace; }
+    .ctl { display:flex; align-items:center; gap:9px; font-size:11px; font-weight:600;
+      letter-spacing:var(--tracking-label); text-transform:uppercase; color:rgba(255,255,255,.6); }
+    input[type=range] { width:110px; accent-color:#fff; cursor:pointer; }
+    .val { min-width:30px; text-align:right; font-variant-numeric:tabular-nums; color:#fff;
+      font-size:12px; letter-spacing:0; }
+    .spacer { flex:1 1 auto; }
+    .divider { width:1px; height:24px; background:rgba(255,255,255,.14); margin:0 4px; }
 
-    /* Tema claro */
-    #app.tema-blanco { }
-    .toast {
-      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-      background: var(--panel); border: 1px solid var(--border); color: var(--fg);
-      padding: 10px 16px; border-radius: 10px; z-index: 70; font-size: 13px;
-      opacity: 0; transition: opacity .25s; pointer-events: none;
-    }
-    .toast.show { opacity: 1; }
+    label.chk { display:inline-flex; align-items:center; gap:7px; cursor:pointer;
+      font-size:11px; font-weight:600; letter-spacing:var(--tracking-label); text-transform:uppercase;
+      color:rgba(255,255,255,.6); }
+    label.chk input { width:15px; height:15px; accent-color:#fff; cursor:pointer; }
 
-    @media (max-width: 720px) {
-      label.field .lbl-txt { display: none; }
-      input[type=range] { width: 80px; }
-      #script { padding-top: 55vh; padding-bottom: 80vh; }
+    /* ---------- Paneles laterales ---------- */
+    .drawer { position:absolute; top:0; bottom:0; right:0; width:min(580px,94vw);
+      background:var(--bg); color:var(--fg); border-left:1px solid var(--hairline);
+      box-shadow:var(--shadow-lg); z-index:50; transform:translateX(101%);
+      transition:transform .32s var(--ease); display:flex; flex-direction:column; }
+    .drawer.left { right:auto; left:0; border-left:none; border-right:1px solid var(--hairline);
+      transform:translateX(-101%); }
+    .drawer.open { transform:translateX(0); }
+    .dh { display:flex; align-items:center; gap:12px; padding:20px 22px 14px; }
+    .dh h2 { font-size:12px; font-weight:600; letter-spacing:var(--tracking-label); text-transform:uppercase; color:var(--muted); }
+    .dh .x { background:transparent; border:1px solid var(--hairline); color:var(--fg); }
+    .db { flex:1; overflow:auto; padding:6px 22px 24px; }
+
+    /* Índice */
+    .distro { margin:4px 0 20px; }
+    .distro h3 { font-size:11px; font-weight:600; letter-spacing:var(--tracking-label);
+      text-transform:uppercase; color:var(--faint); margin-bottom:10px; }
+    .bar-row { display:flex; align-items:center; gap:10px; margin:6px 0; font-size:12px; }
+    .bar-row .name { width:78px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); font-size:10px; }
+    .bar-track { flex:1; height:8px; background:var(--gray-50); border-radius:var(--radius-pill); overflow:hidden; }
+    #app.oscuro .bar-track { background:rgba(255,255,255,.1); }
+    .bar-fill { height:100%; background:var(--fg); border-radius:var(--radius-pill); }
+    .bar-row .pct { width:64px; text-align:right; color:var(--faint); font-variant-numeric:tabular-nums; font-size:11px; }
+
+    .piece-item { width:100%; text-align:left; display:flex; gap:14px; align-items:flex-start;
+      padding:14px 4px; border:none; border-top:1px solid var(--rule); border-radius:0;
+      background:transparent; color:var(--fg); }
+    .piece-item:hover { background:var(--gray-25); }
+    #app.oscuro .piece-item:hover { background:rgba(255,255,255,.05); }
+    .piece-item .num { font-weight:200; font-size:26px; line-height:1; color:var(--faint); min-width:38px; }
+    .piece-item .body { flex:1; }
+    .piece-item .t { font-weight:500; font-size:15px; margin-bottom:5px; }
+    .piece-item .m { font-size:10px; font-weight:600; letter-spacing:var(--tracking-label);
+      text-transform:uppercase; color:var(--muted); display:flex; flex-wrap:wrap; gap:.3em .8em; }
+
+    /* Tabs (panel guión) */
+    .tabs { display:flex; gap:8px; padding:0 22px 4px; }
+    .tabs button { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+      background:transparent; border:1px solid var(--hairline); color:var(--muted); padding:7px 12px; }
+    .tabs button.active { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+    .pane { display:none; } .pane.active { display:block; }
+
+    textarea { width:100%; height:44vh; resize:vertical; background:var(--gray-25); color:var(--fg);
+      border:1px solid var(--hairline); border-radius:var(--radius-lg); padding:14px;
+      font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-size:12.5px; line-height:1.55; }
+    #app.oscuro textarea { background:#0d1114; }
+    .actions { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+    .actions button,.actions .btn { color:var(--fg); background:transparent; border:1px solid var(--hairline);
+      font-weight:500; letter-spacing:0; text-transform:none; }
+    .actions button.primary { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+    .hint { color:var(--muted); font-size:12.5px; line-height:1.65; margin-top:12px; }
+    .hint code { background:var(--gray-50); padding:1px 6px; border-radius:5px; font-size:11.5px; }
+    #app.oscuro .hint code { background:rgba(255,255,255,.1); }
+    #jsonError { color:#b3261e; font-size:12.5px; margin-top:8px; min-height:16px; white-space:pre-wrap; }
+    #app.oscuro #jsonError { color:#ff8a80; }
+
+    .schema { font-size:12.5px; line-height:1.7; color:var(--fg); }
+    .schema h3 { font-size:11px; font-weight:600; letter-spacing:var(--tracking-label);
+      text-transform:uppercase; color:var(--muted); margin:18px 0 8px; }
+    .schema .row { display:flex; gap:12px; margin:4px 0; }
+    .schema .k { color:var(--fg); font-family:ui-monospace,Menlo,monospace; font-size:11.5px;
+      min-width:140px; font-weight:600; }
+    .schema .d { color:var(--muted); flex:1; }
+    .kbd { columns:2; font-size:12.5px; color:var(--muted); line-height:2; }
+    .kbd b { color:var(--fg); font-family:ui-monospace,Menlo,monospace; font-weight:600; }
+
+    .toast { position:absolute; bottom:84px; left:50%; transform:translateX(-50%); background:var(--slate-950);
+      color:#fff; padding:11px 18px; border-radius:var(--radius-pill); z-index:70; font-size:12px;
+      font-weight:600; letter-spacing:.06em; text-transform:uppercase; opacity:0; transition:opacity .25s;
+      pointer-events:none; box-shadow:var(--shadow-lg); }
+    .toast.show { opacity:1; }
+
+    @media (max-width:760px) {
+      .ctl .lbl { display:none; } input[type=range] { width:76px; }
+      #script { padding-top:48vh; padding-bottom:80vh; }
+      .btn-lbl { display:none; }
     }
   </style>
 </head>
 <body>
-  <div id="app" class="tema-negro readline">
+  <div id="app" class="readline">
 
-    <!-- ====== Barra de control ====== -->
-    <div id="topbar">
-      <div class="group">
-        <button id="btnPlay" class="primary icon" title="Reproducir / Pausar (Espacio)">▶︎ <span id="playLbl">Play</span></button>
-        <button id="btnRestart" class="icon" title="Reiniciar (R)">↺ Reiniciar</button>
-      </div>
-      <div class="sep"></div>
+    <div id="brand" title="Studio MRB"></div>
 
-      <label class="field" title="Velocidad de scroll (↑ / ↓)">
-        <span class="lbl-txt">Velocidad</span>
-        <input id="speed" type="range" min="5" max="200" step="1" value="40" />
-        <span class="val" id="speedVal">40</span>
-      </label>
-
-      <label class="field" title="Tamaño de texto (+ / −)">
-        <span class="lbl-txt">Texto</span>
-        <input id="fs" type="range" min="24" max="120" step="1" value="46" />
-        <span class="val" id="fsVal">46</span>
-      </label>
-
-      <label class="field" title="Ancho de columna">
-        <span class="lbl-txt">Ancho</span>
-        <input id="width" type="range" min="40" max="100" step="1" value="88" />
-        <span class="val" id="widthVal">88</span>
-      </label>
-
-      <label class="field" title="Interlineado">
-        <span class="lbl-txt">Interlínea</span>
-        <input id="lh" type="range" min="11" max="26" step="1" value="15" />
-        <span class="val" id="lhVal">1.5</span>
-      </label>
-
-      <div class="spacer"></div>
-
-      <div class="group">
-        <button id="btnTheme" class="icon" title="Fondo negro / blanco (B)">◐ Fondo</button>
-        <button id="btnMirrorH" class="icon" title="Espejo horizontal (M)">⇄ Espejo</button>
-        <button id="btnReadline" class="icon on" title="Línea de lectura (L)">— Línea</button>
-        <button id="btnFocus" class="icon" title="Modo foco (viñeta)">◍ Foco</button>
-        <button id="btnFull" class="icon" title="Pantalla completa (F)">⛶ Full</button>
-        <button id="btnDrawer" class="icon" title="Guión / JSON (G)">☰ Guión</button>
-      </div>
-    </div>
-
-    <!-- ====== Escenario ====== -->
+    <!-- ===== Escenario ===== -->
     <div id="stage">
-      <div id="scroller">
-        <div id="script"><!-- render dinámico --></div>
-      </div>
+      <div id="scroller"><div id="script"></div></div>
       <div id="vignette"></div>
       <div id="readline"></div>
       <div id="progress"></div>
@@ -320,64 +258,83 @@
       <div class="toast" id="toast"></div>
     </div>
 
-    <!-- ====== Panel guión / JSON ====== -->
-    <div id="drawer">
-      <div class="drawer-head">
-        <h2>📝 Guión</h2>
-        <div class="spacer"></div>
-        <button id="btnCloseDrawer" class="icon">✕</button>
+    <!-- ===== Barra de control ===== -->
+    <div id="bar">
+      <button id="btnIndex" class="ghost" title="Índice de piezas (I)">≡ <span class="btn-lbl">Índice</span></button>
+      <button id="btnPlay" class="primary" title="Reproducir / Pausar (Espacio)">▶︎ <span id="playLbl">Reproducir</span></button>
+      <button id="btnRestart" class="ghost" title="Reiniciar (R)">↺ <span class="btn-lbl">Reiniciar</span></button>
+
+      <div class="divider"></div>
+      <div class="ctl" title="Velocidad (↑/↓)"><span class="lbl">Velocidad</span>
+        <input id="speed" type="range" min="5" max="200" step="1" value="40"><span class="val" id="speedVal">40</span></div>
+      <div class="ctl" title="Tamaño (+/−)"><span class="lbl">Tamaño</span>
+        <input id="fs" type="range" min="24" max="120" step="1" value="44"><span class="val" id="fsVal">44</span></div>
+
+      <div class="spacer"></div>
+
+      <label class="chk" title="Espejo (M)"><input type="checkbox" id="chkMirror">Espejo</label>
+      <label class="chk" title="Oscuro (B)"><input type="checkbox" id="chkDark">Oscuro</label>
+      <div class="divider"></div>
+      <button id="btnReadline" class="on" title="Línea de lectura (L)">— <span class="btn-lbl">Línea</span></button>
+      <button id="btnFont" class="ghost" title="Tipografía Urbanist / Serif (T)">Aa</button>
+      <button id="btnFull" class="ghost" title="Pantalla completa (F)">⛶</button>
+      <button id="btnScript" class="ghost" title="Guión / JSON (G)">{ } <span class="btn-lbl">Guión</span></button>
+    </div>
+
+    <!-- ===== Panel Índice ===== -->
+    <div class="drawer left" id="indexDrawer">
+      <div class="dh"><h2 id="indexTitle">Índice</h2><div class="spacer"></div>
+        <button class="x" id="closeIndex">✕</button></div>
+      <div class="db">
+        <div class="distro" id="distro"></div>
+        <div id="pieceList"></div>
       </div>
-      <div class="drawer-tabs">
+    </div>
+
+    <!-- ===== Panel Guión / JSON ===== -->
+    <div class="drawer" id="scriptDrawer">
+      <div class="dh"><h2>Guión</h2><div class="spacer"></div><button class="x" id="closeScript">✕</button></div>
+      <div class="tabs">
         <button data-tab="json" class="active">JSON</button>
         <button data-tab="schema">Estructura</button>
-        <button data-tab="atajos">Atajos</button>
+        <button data-tab="keys">Atajos</button>
       </div>
-      <div class="drawer-body">
-
+      <div class="db">
         <div class="pane active" data-pane="json">
           <textarea id="jsonInput" spellcheck="false"></textarea>
           <div id="jsonError"></div>
-          <div class="drawer-actions">
+          <div class="actions">
             <button id="btnApply" class="primary">Cargar guión</button>
             <button id="btnFormat">Formatear</button>
             <button id="btnExample">Ejemplo</button>
-            <button id="btnCopySchema">Copiar plantilla</button>
-            <button id="btnDownload">Descargar .json</button>
-            <label class="btn" style="cursor:pointer">Abrir .json
-              <input id="fileInput" type="file" accept=".json,application/json" hidden />
-            </label>
+            <button id="btnCopyTemplate">Copiar plantilla</button>
+            <button id="btnDownload">Descargar</button>
+            <label class="btn">Abrir .json<input id="fileInput" type="file" accept=".json,application/json" hidden></label>
           </div>
-          <p class="hint">
-            Pegá acá el JSON de tu guión y tocá <b>Cargar guión</b>. Se guarda solo en tu navegador.
-            Pasale la plantilla a Claude para que adapte cualquier guión a este formato.
-          </p>
+          <p class="hint">Pegá el JSON de tu semana y tocá <b>Cargar guión</b>. Acepta comentarios <code>//</code>
+            y comas finales, así podés pegar directo lo que te dé Claude. Se guarda en tu navegador.</p>
         </div>
-
-        <div class="pane" data-pane="schema">
-          <div class="schema-block" id="schemaHtml"></div>
-        </div>
-
-        <div class="pane" data-pane="atajos">
-          <div class="kbd-list">
-            <div><b>Espacio</b> — Play / Pausa</div>
-            <div><b>↑ / ↓</b> — Velocidad</div>
-            <div><b>+ / −</b> — Tamaño texto</div>
-            <div><b>← / →</b> — Saltar bloque</div>
-            <div><b>R</b> — Reiniciar</div>
-            <div><b>B</b> — Fondo negro/blanco</div>
-            <div><b>M</b> — Espejo horizontal</div>
-            <div><b>L</b> — Línea de lectura</div>
-            <div><b>F</b> — Pantalla completa</div>
-            <div><b>G</b> — Panel de guión</div>
-            <div><b>Esc</b> — Salir / cerrar</div>
-            <div><b>Home</b> — Ir al inicio</div>
+        <div class="pane" data-pane="schema"><div class="schema" id="schemaHtml"></div></div>
+        <div class="pane" data-pane="keys">
+          <div class="kbd">
+            <div><b>Espacio</b> Play / Pausa</div>
+            <div><b>↑ / ↓</b> Velocidad</div>
+            <div><b>+ / −</b> Tamaño</div>
+            <div><b>← / →</b> Saltar bloque</div>
+            <div><b>I</b> Índice de piezas</div>
+            <div><b>R</b> Reiniciar</div>
+            <div><b>B</b> Fondo oscuro/claro</div>
+            <div><b>M</b> Espejo</div>
+            <div><b>L</b> Línea de lectura</div>
+            <div><b>T</b> Tipografía</div>
+            <div><b>F</b> Pantalla completa</div>
+            <div><b>G</b> Panel de guión</div>
+            <div><b>Home</b> Inicio</div>
+            <div><b>Esc</b> Cerrar</div>
           </div>
-          <p class="hint" style="margin-top:16px">
-            Durante la reproducción la barra superior se oculta sola para que la cámara
-            solo capture el texto. Movés el mouse o tocás la pantalla para que vuelva.
-          </p>
+          <p class="hint">Al reproducir, la barra inferior y el logo se ocultan solos para que la cámara
+            solo vea el texto. Movés el mouse o tocás la pantalla para traerlos de vuelta.</p>
         </div>
-
       </div>
     </div>
   </div>
@@ -386,329 +343,369 @@
   (() => {
     "use strict";
     const $ = s => document.querySelector(s);
-    const app = $("#app"), scroller = $("#scroller"), script = $("#script");
+    const app=$("#app"), scroller=$("#scroller"), script=$("#script");
 
-    // ---------- Guión de ejemplo (formato para reels / entrevistas) ----------
+    // Logo Studio MRB (blanco/negro adaptado por CSS fill)
+    $("#brand").innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 913.25 181.63"><path d="M39,180.91c-5.64-.07-11.15-1.07-16.55-3-5.4-1.93-10.1-4.53-14.1-7.79-4.01-3.26-6.79-6.96-8.35-11.1l9.67-4.18c1.15,3.06,3.38,5.8,6.67,8.25,3.29,2.44,7.02,4.36,11.2,5.75,4.18,1.39,8.27,2.09,12.27,2.09,4.55,0,8.83-.78,12.83-2.34,4.01-1.56,7.26-3.77,9.78-6.62,2.51-2.85,3.77-6.21,3.77-10.08,0-4.07-1.32-7.28-3.97-9.62-2.65-2.34-6.03-4.24-10.13-5.7-4.11-1.46-8.33-2.83-12.68-4.12-7.47-2.17-13.93-4.39-19.4-6.67-5.47-2.27-9.69-5.18-12.68-8.71-2.99-3.53-4.48-8.18-4.48-13.95s1.73-11.17,5.19-15.58c3.46-4.41,8.01-7.82,13.65-10.23,5.63-2.41,11.68-3.61,18.13-3.61,8.35,0,15.94,1.83,22.76,5.5,6.82,3.67,11.63,8.49,14.41,14.46l-8.96,5.3c-1.36-3.12-3.5-5.81-6.42-8.04-2.92-2.24-6.25-3.97-9.98-5.19-3.73-1.22-7.5-1.87-11.3-1.93-4.75-.07-9.18.66-13.29,2.19-4.11,1.53-7.42,3.73-9.93,6.62-2.51,2.89-3.77,6.37-3.77,10.44s1.15,7.2,3.46,9.37c2.31,2.17,5.53,3.92,9.68,5.24,4.14,1.32,8.93,2.87,14.36,4.63,6.31,1.97,12.2,4.16,17.67,6.57,5.46,2.41,9.88,5.41,13.24,9.01,3.36,3.6,5.01,8.25,4.94,13.95,0,5.97-1.78,11.17-5.35,15.58-3.57,4.41-8.22,7.81-13.95,10.18-5.74,2.38-11.87,3.5-18.38,3.36Z"/><path d="M145.52,88.14h-25.76l-.1,90.84h-11l.1-90.84h-19.45v-11h19.45l-.1-31.98h11l.1,31.98h25.76v11Z"/><path d="M159.67,139.57v-62.43h11v60.69c0,6.04,1.48,11.54,4.43,16.5,2.95,4.96,6.91,8.89,11.86,11.81,4.95,2.92,10.42,4.38,16.4,4.38s11.52-1.46,16.45-4.38c4.92-2.92,8.86-6.86,11.81-11.81,2.95-4.96,4.43-10.45,4.43-16.5v-60.69h11v101.84h-11v-15.78c-3.67,5.57-8.5,10.03-14.51,13.39-6.01,3.36-12.61,5.04-19.81,5.04-7.74,0-14.8-1.88-21.18-5.65-6.38-3.77-11.46-8.84-15.22-15.22-3.77-6.38-5.65-13.44-5.65-21.18Z"/><path d="M353.26,26.23h11v152.75h-11v-20.98c-3.53,7.13-8.55,12.85-15.07,17.16-6.52,4.31-14.29,6.47-23.32,6.47-7.4,0-14.33-1.39-20.77-4.17-6.45-2.78-12.14-6.64-17.06-11.56-4.92-4.92-8.78-10.61-11.56-17.06-2.78-6.45-4.18-13.37-4.18-20.77s1.39-14.34,4.18-20.83c2.78-6.48,6.64-12.18,11.56-17.11,4.92-4.92,10.61-8.77,17.06-11.56,6.45-2.78,13.37-4.18,20.77-4.18,9.03,0,16.8,2.16,23.32,6.47,6.52,4.31,11.54,10,15.07,17.06V26.23ZM314.97,170.83c7.81,0,14.51-1.92,20.11-5.75,5.6-3.84,9.89-9.01,12.88-15.53,2.99-6.52,4.48-13.68,4.48-21.49s-1.51-15.26-4.53-21.74c-3.02-6.48-7.33-11.64-12.93-15.48-5.6-3.84-12.27-5.75-20.01-5.75s-14.92,1.93-21.33,5.81c-6.42,3.87-11.54,9.06-15.38,15.58-3.84,6.52-5.75,13.71-5.75,21.59s1.95,15.24,5.86,21.69c3.9,6.45,9.08,11.58,15.53,15.38,6.45,3.8,13.48,5.7,21.08,5.7Z"/><path d="M394.3,57.9c-1.9,0-3.51-.63-4.84-1.88-1.32-1.25-1.99-2.83-1.99-4.73s.66-3.48,1.99-4.73c1.32-1.26,2.93-1.88,4.84-1.88s3.41.63,4.73,1.88c1.32,1.26,1.99,2.84,1.99,4.73s-.65,3.48-1.93,4.73c-1.29,1.26-2.89,1.88-4.79,1.88ZM388.7,77.14h11v101.84h-11v-101.84Z"/><path d="M468.94,181.63c-9.37,0-17.91-2.41-25.61-7.23-7.71-4.82-13.85-11.29-18.43-19.4-4.58-8.11-6.87-17.09-6.87-26.94,0-7.47,1.32-14.44,3.97-20.93,2.65-6.48,6.3-12.18,10.95-17.11,4.65-4.92,10.06-8.77,16.24-11.56,6.18-2.78,12.76-4.18,19.76-4.18,9.37,0,17.91,2.41,25.61,7.23,7.7,4.82,13.85,11.3,18.43,19.45,4.58,8.15,6.88,17.18,6.88,27.09,0,7.4-1.32,14.33-3.97,20.77-2.65,6.45-6.3,12.14-10.95,17.06-4.65,4.92-10.05,8.78-16.19,11.56-6.15,2.78-12.75,4.17-19.81,4.17ZM468.94,170.63c7.54,0,14.31-1.97,20.32-5.91,6.01-3.94,10.78-9.13,14.31-15.58,3.53-6.45,5.3-13.48,5.3-21.08s-1.77-14.77-5.3-21.28c-3.53-6.52-8.32-11.73-14.36-15.63-6.04-3.9-12.8-5.86-20.27-5.86s-14.33,1.97-20.36,5.91c-6.05,3.94-10.81,9.15-14.31,15.63-3.5,6.48-5.24,13.56-5.24,21.23s1.82,15.12,5.45,21.54c3.63,6.42,8.47,11.53,14.51,15.33,6.04,3.8,12.7,5.7,19.96,5.7Z"/><rect x="537.35" y="69.94" width="34.97" height="110.17"/><path d="M642.25,180.11h-34.97v-101.43c0-4.83-3.91-8.74-8.74-8.74h-26.23v-34.97h26.23c24.14,0,43.71,19.57,43.71,43.71v101.43Z"/><path d="M712.19,180.11h-34.97v-101.43c0-4.83-3.91-8.74-8.74-8.74h-26.23v-34.97h26.23c24.14,0,43.71,19.57,43.71,43.71v101.43Z"/><path d="M720.93,180.11h34.97s0-101.43,0-101.43c0-4.83,3.91-8.74,8.74-8.74h26.23s0-34.97,0-34.97h-26.23c-24.14,0-43.71,19.57-43.71,43.71v101.43Z"/><path d="M869.54,34.97h-26.23v34.97h26.23c4.83,0,8.74,3.91,8.74,8.74v57.72c0,4.83-3.91,8.74-8.74,8.74h-26.23c-4.83,0-8.74-3.91-8.74-8.74V0h-34.97v136.4c0,24.14,19.57,43.71,43.71,43.71h26.23c24.14,0,43.71-19.57,43.71-43.71v-57.72c0-24.14-19.57-43.71-43.71-43.71Z"/><circle cx="815.19" cy="26.23" r="8.74"/><circle cx="815.19" cy="8.74" r="8.74"/></svg>`;
+
+    // ---------- Diccionarios de rótulos ----------
+    const ROL_LABEL = { hook:"Hook (0-3s)", problema:"Problema", solucion:"Solución",
+      prueba_social:"Prueba social", cta:"CTA", producto:"Producto", contexto:"Contexto",
+      pregunta:"Pregunta", respuesta:"Respuesta", direccion:"Dirección", nota:"Nota", contenido:"" };
+    const CAT_LABEL = { problema:"Problema", solucion:"Solución", producto:"Producto", otros:"Otros" };
+    const EST_LABEL = { grabada:"Grabada", pendiente:"Pendiente", en_revision:"En revisión" };
+    const CAT_ORDER = ["problema","solucion","producto","otros"];
+
+    // ---------- Guión de ejemplo (esquema real Studio MRB / FINANCERS) ----------
     const EJEMPLO = {
-      meta: {
-        titulo: "Reel · Entrevista de ejemplo",
-        autor: "Studio MRB",
-        duracionEstimada: "60s",
-        notas: "Guión de muestra: reemplazalo por el tuyo."
-      },
-      config: { velocidad: 40, tamanoTexto: 46, tema: "negro", espejo: false },
-      bloques: [
-        { tipo: "gancho", texto: "¿Y si te dijera que grabás un reel en una sola toma?" },
-        { tipo: "titulo", texto: "Bloque 1 · Presentación" },
-        { tipo: "direccion", texto: "Mirá a cámara, sonreí, pausa de 1 seg" },
-        { tipo: "entrevistador", nombre: "Ana", texto: "Contame, ¿cómo empezó todo?" },
-        { tipo: "entrevistado", nombre: "Martín", texto: "Empezó como un experimento en el living de casa..." },
-        { tipo: "broll", texto: "plano detalle de las manos escribiendo" },
-        { tipo: "titulo", texto: "Bloque 2 · El giro" },
-        { tipo: "entrevistador", nombre: "Ana", texto: "¿Y cuál fue el momento que lo cambió todo?" },
-        { tipo: "entrevistado", nombre: "Martín", texto: "El día que un video llegó a un millón de personas sin pauta." },
-        { tipo: "direccion", texto: "bajá el ritmo, tono íntimo" },
-        { tipo: "pausa", texto: "" },
-        { tipo: "cta", texto: "Seguime para la segunda parte 👇" }
+      meta: { influencer:"Federico Colrat", handle:"Accounting Advisor", marca:"FINANCERS",
+        semana:1, registro:"voseo_ar",
+        distribucion_objetivo:{ problema:50, solucion:30, otros:20, producto:"condimento" } },
+      config:{ velocidad:40, tamanoTexto:44, oscuro:false },
+      piezas:[
+        { id:1, dia:1, titulo:"Presentación — para quién es esto", categoria:"otros",
+          familia:"nucleo", formato:"reel", tipo_video:"hablando a cámara", estado:"grabada",
+          cta:{ tipo:"seguir", palabra:"Seguime", recurso:null },
+          bloques:[
+            { rol:"hook", label:"Hook (0-3s)", texto:"Tener una empresa en Estados Unidos suena muy lindo mientras el banco no te cierre la cuenta." },
+            { rol:"problema", label:"Problema", texto:"Veo lo mismo todos los días. Alguien abrió una LLC para operar tranquilo en USA y termina con el banco pidiendo información que ni sabía que existía, una multa del IRS que no entiende y su proveedor que no le contesta." },
+            { rol:"solucion", label:"Solución", texto:"Te lo hago simple. Mantenemos tu empresa en regla para que puedas gestionar cobros y pagos sin tener miedo a las sorpresas." },
+            { rol:"prueba_social", label:"Prueba social", texto:"¿Cómo? Atrás mío hay un estudio contable con licencia ante el IRS que ya creó más de mil empresas." },
+            { rol:"cta", label:"CTA", texto:"Seguime, que esto recién arranca. Cada día te muestro un error que te está costando caro… y cómo evitarlo." }
+          ] },
+        { id:3, dia:2, titulo:"Multa \"no me avisaron\"", categoria:"problema",
+          familia:"rescate", formato:"reel", tipo_video:"hablando a cámara", estado:"grabada",
+          cta:{ tipo:"palabra_clave", palabra:"MULTA", recurso:"chequeo de obligaciones anuales" },
+          bloques:[
+            { rol:"hook", label:"Hook (0-3s)", texto:"¿Te llegó una multa del IRS y nadie te avisó? La buena noticia es que tiene solución… si se acciona a tiempo." },
+            { rol:"problema", label:"Problema", texto:"Es una historia que se repite más de lo que te imaginás: la empresa quedó sin presentar algo, el IRS aplicó la multa y el aviso llegó tarde o nunca." },
+            { rol:"solucion", label:"Solución", texto:"La parte buena es que hay un mecanismo del IRS, el First-Time Abatement, que en muchos casos permite pedir que la perdonen si es la primera vez." },
+            { rol:"prueba_social", label:"Prueba social", texto:"Lo gestionamos muy seguido y, cuando la empresa califica, se resuelve sin drama." },
+            { rol:"cta", label:"CTA", texto:"En los comentarios escribí la palabra MULTA y te paso el chequeo de obligaciones anuales para que no te vuelva a pasar." }
+          ] },
+        { id:5, dia:3, titulo:"Abrir la LLC no es el final", categoria:"solucion",
+          familia:"internacionalizacion", formato:"carrusel", tipo_video:"escritorio", estado:"pendiente",
+          cta:{ tipo:"guardar", palabra:null, recurso:"calendario fiscal anual" },
+          bloques:[
+            { rol:"hook", label:"Portada", slide:1, texto:"Abriste tu LLC. Felicitaciones. Ahora empieza lo que nadie te cuenta." },
+            { rol:"contenido", label:"Idea", slide:2, pregunta_guia:"¿Qué obligación se olvidan todos?", texto:"El BOI, el Formulario 5472 y el estatal: tres cosas que se vencen aunque no factures un dólar." },
+            { rol:"contenido", label:"Idea", slide:3, texto:"No presentarlas no es \"ahorrar\": es acumular multas que después cuestan diez veces más." },
+            { rol:"cta", label:"Cierre", slide:4, texto:"Guardá este posteo y armá tu calendario fiscal. Si querés el nuestro, te lo dejo." }
+          ] }
       ]
     };
 
     // ---------- Estado ----------
-    let playing = false, raf = null, lastTs = 0, remainder = 0;
-    let bloqueEls = [];
+    let playing=false, raf=null, lastTs=0, rem=0, bloqueEls=[], piezaEls=[], serif=false;
 
-    // ---------- Render del guión ----------
-    function esc(t){ return (t==null?"":String(t)).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+    // ---------- Parser tolerante (comentarios // y comas finales) ----------
+    function looseParse(raw){
+      let out="", inStr=false, q="", i=0;
+      while(i<raw.length){
+        const c=raw[i], n=raw[i+1];
+        if(inStr){ out+=c; if(c==="\\"){ out+=raw[i+1]||""; i+=2; continue; } if(c===q) inStr=false; i++; continue; }
+        if(c==='"'||c==="'"){ inStr=true; q=c; out+=c; i++; continue; }
+        if(c==="/"&&n==="/"){ while(i<raw.length&&raw[i]!=="\n") i++; continue; }
+        if(c==="/"&&n==="*"){ i+=2; while(i<raw.length&&!(raw[i]==="*"&&raw[i+1]==="/")) i++; i+=2; continue; }
+        out+=c; i++;
+      }
+      out=out.replace(/,\s*([}\]])/g,"$1");   // comas finales
+      return JSON.parse(out);
+    }
+    function safeParse(s){ try{ return looseParse(s); }catch{ return null; } }
+
+    // ---------- Normalización de datos ----------
+    function normalize(data){
+      const meta=data.meta||{};
+      // acepta "piezas" (nuevo) o "bloques" suelto (retrocompat) envuelto en una pieza
+      let piezas=data.piezas;
+      if(!Array.isArray(piezas)){
+        if(Array.isArray(data.bloques)) piezas=[{ titulo:meta.titulo||"Guión", bloques:data.bloques }];
+        else piezas=[];
+      }
+      return { meta, config:data.config||{}, piezas };
+    }
+
+    // ---------- Render ----------
+    const esc=t=>(t==null?"":String(t)).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 
     function render(data){
-      script.innerHTML = "";
-      const bloques = (data && data.bloques) || [];
-      bloques.forEach(b => {
-        const tipo = (b.tipo || "narracion").toLowerCase();
-        const el = document.createElement("div");
-        el.className = "bloque b-" + tipo;
-        const nombre = b.nombre ? `<span class="locutor">${esc(b.nombre)}</span>` : "";
-        switch(tipo){
-          case "titulo":
-            el.innerHTML = esc(b.texto); break;
-          case "gancho":
-            el.innerHTML = `<span class="tag">GANCHO · </span>${esc(b.texto)}`; break;
-          case "entrevistador":
-          case "entrevistado":
-          case "narracion":
-            el.innerHTML = `${nombre}<span class="cuerpo">${esc(b.texto)}</span>`; break;
-          case "direccion":
-            el.innerHTML = esc(b.texto); break;
-          case "broll":
-            el.innerHTML = esc(b.texto); break;
-          case "cta":
-            el.innerHTML = esc(b.texto); break;
-          case "pausa":
-            el.innerHTML = b.texto ? esc(b.texto) : "• • •"; break;
-          default:
-            el.innerHTML = `${nombre}<span class="cuerpo">${esc(b.texto)}</span>`;
-        }
-        script.appendChild(el);
+      const { meta, config, piezas } = normalize(data);
+      script.innerHTML="";
+      piezas.forEach((p,idx)=>{
+        const pieza=document.createElement("section");
+        pieza.className="pieza"; pieza.dataset.idx=idx;
+
+        const estado=p.estado||"";
+        const dotCls=estado==="grabada"?"full":estado==="en_revision"?"half":"";
+        const cat=(p.categoria||"").toLowerCase();
+        const metaBits=[];
+        if(cat) metaBits.push(CAT_LABEL[cat]||cat);
+        if(p.formato) metaBits.push(p.formato);
+        if(p.tipo_video) metaBits.push(p.tipo_video);
+        if(p.familia) metaBits.push(p.familia);
+        const ctaWord=p.cta&&(p.cta.palabra||p.cta.tipo);
+
+        let html=`<div class="pieza-head">
+          <div class="kicker">
+            <span>Pieza ${p.id!=null?esc(p.id):idx+1}${p.dia!=null?" · Día "+esc(p.dia):""}</span>
+            ${estado?`<span class="estado"><span class="dot ${dotCls}"></span>${esc(EST_LABEL[estado]||estado)}</span>`:""}
+          </div>
+          <div class="pieza-titulo">${esc(p.titulo||"")}</div>
+          <div class="pieza-meta">${metaBits.map((b,i)=>`<span class="${i?"sepdot":""}">${esc(b)}</span>`).join("")}
+            ${ctaWord?`<span class="sepdot">CTA: ${esc(ctaWord)}</span>`:""}</div>
+        </div>`;
+
+        (p.bloques||[]).forEach(b=>{
+          const rol=(b.rol||"contenido").toLowerCase();
+          const label=b.label!=null?b.label:(ROL_LABEL[rol]??rol);
+          const slide=b.slide!=null?`<span class="slidechip">Slide ${esc(b.slide)}</span>`:"";
+          const labelHtml=(label||slide)?`<div class="b-label">${label?esc(label):""}${slide}</div>`:"";
+          const guia=b.pregunta_guia?`<div class="b-guia">${esc(b.pregunta_guia)}</div>`:"";
+          let extra="";
+          if(rol==="cta"&&p.cta){
+            const info=[]; if(p.cta.palabra) info.push("Palabra: "+p.cta.palabra);
+            if(p.cta.recurso) info.push("Recurso: "+p.cta.recurso);
+            if(info.length) extra=`<div class="cta-info">${esc(info.join("  ·  "))}</div>`;
+          }
+          html+=`<div class="bloque b-${rol}">${labelHtml}${guia}<div class="b-texto">${esc(b.texto||"")}</div>${extra}</div>`;
+        });
+        pieza.innerHTML=html;
+        script.appendChild(pieza);
       });
-      bloqueEls = [...script.querySelectorAll(".bloque")];
-      // aplicar config del guión si existe
-      if (data && data.config) applyConfig(data.config);
+
+      bloqueEls=[...script.querySelectorAll(".bloque")];
+      piezaEls=[...script.querySelectorAll(".pieza")];
+      renderIndex(meta,piezas);
+      if(config) applyConfig(config);
       resetScroll();
     }
 
     function applyConfig(c){
-      if (c.velocidad) { $("#speed").value = c.velocidad; syncSpeed(); }
-      if (c.tamanoTexto) { $("#fs").value = c.tamanoTexto; syncFs(); }
-      if (c.tema === "blanco") setTheme("blanco"); else if (c.tema === "negro") setTheme("negro");
-      if (typeof c.espejo === "boolean") { app.classList.toggle("mirror-h", c.espejo); $("#btnMirrorH").classList.toggle("on", c.espejo); }
+      if(c.velocidad){ $("#speed").value=c.velocidad; syncSpeed(); }
+      if(c.tamanoTexto){ $("#fs").value=c.tamanoTexto; syncFs(); }
+      if(typeof c.oscuro==="boolean"){ $("#chkDark").checked=c.oscuro; app.classList.toggle("oscuro",c.oscuro); }
     }
+
+    // ---------- Índice + distribución ----------
+    function renderIndex(meta,piezas){
+      $("#indexTitle").textContent = meta.marca ? `${meta.marca} · Semana ${meta.semana??""}`.trim() : "Índice";
+
+      // distribución real por categoría vs objetivo
+      const counts={}; CAT_ORDER.forEach(k=>counts[k]=0);
+      piezas.forEach(p=>{ const c=(p.categoria||"").toLowerCase(); if(c in counts) counts[c]++; });
+      const total=piezas.length||1;
+      const obj=(meta.distribucion_objetivo)||{};
+      let d=`<h3>Distribución de contenido</h3>`;
+      CAT_ORDER.forEach(k=>{
+        const pct=Math.round(counts[k]/total*100);
+        const target=typeof obj[k]==="number"?` / obj ${obj[k]}%`:"";
+        d+=`<div class="bar-row"><span class="name">${CAT_LABEL[k]}</span>
+          <span class="bar-track"><span class="bar-fill" style="width:${pct}%"></span></span>
+          <span class="pct">${counts[k]} · ${pct}%${target}</span></div>`;
+      });
+      $("#distro").innerHTML=d;
+
+      let list="";
+      piezas.forEach((p,idx)=>{
+        const estado=p.estado||""; const cat=(p.categoria||"").toLowerCase();
+        const bits=[CAT_LABEL[cat]||cat, p.formato, p.tipo_video].filter(Boolean);
+        const dotCls=estado==="grabada"?"full":estado==="en_revision"?"half":"";
+        list+=`<button class="piece-item" data-goto="${idx}">
+          <span class="num">${p.id!=null?esc(p.id):idx+1}</span>
+          <span class="body"><span class="t">${esc(p.titulo||"Sin título")}</span>
+          <span class="m">${estado?`<span><span class="dot ${dotCls}" style="width:.9em;height:.9em"></span> ${esc(EST_LABEL[estado]||estado)}</span>`:""}
+          ${bits.map(b=>`<span>${esc(b)}</span>`).join("")}</span></span></button>`;
+      });
+      $("#pieceList").innerHTML=list;
+      $("#pieceList").querySelectorAll("[data-goto]").forEach(el=>el.onclick=()=>{
+        gotoPieza(+el.dataset.goto); closeIndex();
+      });
+    }
+
+    function gotoPieza(i){ const el=piezaEls[i]; if(!el) return;
+      scroller.scrollTop=el.offsetTop-scroller.clientHeight*0.32; updateProgress(); }
 
     // ---------- Auto-scroll ----------
     function tick(ts){
-      if (!playing) return;
-      if (!lastTs) lastTs = ts;
-      const dt = (ts - lastTs) / 1000; lastTs = ts;
-      const pxPerSec = parseFloat($("#speed").value); // velocidad = px/seg aprox
-      remainder += pxPerSec * dt;
-      const step = Math.floor(remainder);
-      if (step >= 1){ scroller.scrollTop += step; remainder -= step; }
+      if(!playing) return;
+      if(!lastTs) lastTs=ts;
+      const dt=(ts-lastTs)/1000; lastTs=ts;
+      rem+=parseFloat($("#speed").value)*dt;
+      const step=Math.floor(rem);
+      if(step>=1){ scroller.scrollTop+=step; rem-=step; }
       updateProgress();
-      if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2){
-        pause(); toast("Fin del guión");
-      } else {
-        raf = requestAnimationFrame(tick);
-      }
+      if(scroller.scrollTop+scroller.clientHeight>=scroller.scrollHeight-2){ pause(); toast("Fin del guión"); }
+      else raf=requestAnimationFrame(tick);
     }
-
-    function play(withCountdown){
-      if (playing) return;
-      const start = () => {
-        playing = true; lastTs = 0; app.classList.add("playing");
-        $("#playLbl").textContent = "Pausa"; $("#btnPlay").firstChild.textContent = "⏸ ";
-        raf = requestAnimationFrame(tick);
-      };
-      if (withCountdown) countdown(3, start); else start();
-    }
-    function pause(){
-      playing = false; if (raf) cancelAnimationFrame(raf);
-      app.classList.remove("playing");
-      $("#playLbl").textContent = "Play"; $("#btnPlay").firstChild.textContent = "▶︎ ";
-    }
-    function toggle(){ playing ? pause() : play(true); }
-    function resetScroll(){ scroller.scrollTop = 0; remainder = 0; updateProgress(); }
+    function play(cd){ if(playing) return;
+      const go=()=>{ playing=true; lastTs=0; app.classList.add("playing");
+        $("#playLbl").textContent="Pausa"; $("#btnPlay").firstChild.textContent="⏸ "; raf=requestAnimationFrame(tick); };
+      cd?countdown(3,go):go(); }
+    function pause(){ playing=false; if(raf) cancelAnimationFrame(raf); app.classList.remove("playing");
+      $("#playLbl").textContent="Reproducir"; $("#btnPlay").firstChild.textContent="▶︎ "; }
+    function toggle(){ playing?pause():play(true); }
+    function resetScroll(){ scroller.scrollTop=0; rem=0; updateProgress(); }
     function restart(){ pause(); resetScroll(); toast("Reiniciado"); }
+    function updateProgress(){ const max=scroller.scrollHeight-scroller.clientHeight;
+      $("#progress").style.width=(max>0?scroller.scrollTop/max*100:0)+"%"; }
 
-    function updateProgress(){
-      const max = scroller.scrollHeight - scroller.clientHeight;
-      const pct = max > 0 ? (scroller.scrollTop / max) * 100 : 0;
-      $("#progress").style.width = pct + "%";
-    }
+    function countdown(n,done){ const el=$("#countdown"); el.classList.add("show"); el.textContent=n;
+      let i=n; const iv=setInterval(()=>{ i--; if(i<=0){ clearInterval(iv); el.classList.remove("show"); done(); }
+        else el.textContent=i; },800); }
 
-    // ---------- Cuenta regresiva ----------
-    function countdown(n, done){
-      const el = $("#countdown"); el.classList.add("show"); el.textContent = n;
-      let i = n;
-      const iv = setInterval(() => {
-        i--;
-        if (i <= 0){ clearInterval(iv); el.classList.remove("show"); done(); }
-        else el.textContent = i;
-      }, 800);
-    }
-
-    // ---------- Saltar entre bloques ----------
     function jump(dir){
-      const center = scroller.scrollTop + scroller.clientHeight * 0.4;
-      let target = null;
-      if (dir > 0){
-        for (const el of bloqueEls){ if (el.offsetTop > center + 4){ target = el; break; } }
-      } else {
-        for (let k = bloqueEls.length-1; k>=0; k--){ if (bloqueEls[k].offsetTop < center - 4){ target = bloqueEls[k]; break; } }
-      }
-      if (target){
-        scroller.scrollTop = target.offsetTop - scroller.clientHeight * 0.4;
-        updateProgress();
-      }
+      const center=scroller.scrollTop+scroller.clientHeight*0.38; let t=null;
+      if(dir>0){ for(const el of bloqueEls){ if(el.offsetTop>center+4){ t=el; break; } } }
+      else { for(let k=bloqueEls.length-1;k>=0;k--){ if(bloqueEls[k].offsetTop<center-4){ t=bloqueEls[k]; break; } } }
+      if(t){ scroller.scrollTop=t.offsetTop-scroller.clientHeight*0.38; updateProgress(); }
     }
 
-    // ---------- Controles de UI ----------
-    function syncSpeed(){ $("#speedVal").textContent = $("#speed").value; }
-    function syncFs(){ const v = $("#fs").value; document.documentElement.style.setProperty("--fs", v+"px"); $("#fsVal").textContent = v; }
-    function syncWidth(){ const v = $("#width").value; document.documentElement.style.setProperty("--width", v+"%"); $("#widthVal").textContent = v; }
-    function syncLh(){ const v = $("#lh").value/10; document.documentElement.style.setProperty("--lh", v); $("#lhVal").textContent = v.toFixed(1); }
+    // ---------- Controles ----------
+    function syncSpeed(){ $("#speedVal").textContent=$("#speed").value; }
+    function syncFs(){ const v=$("#fs").value; document.documentElement.style.setProperty("--fs",v+"px"); $("#fsVal").textContent=v; }
+    function setDark(on){ app.classList.toggle("oscuro",on); $("#chkDark").checked=on; }
+    function toggleFull(){ if(!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
+    function setFont(){ document.documentElement.style.setProperty("--readfont", serif?"var(--font-serif)":"var(--font)"); }
 
-    function setTheme(t){
-      if (t === "blanco"){
-        document.documentElement.style.setProperty("--bg", "#f7f7f4");
-        document.documentElement.style.setProperty("--fg", "#161616");
-        document.documentElement.style.setProperty("--muted", "#8a8a8a");
-        app.classList.add("tema-blanco"); app.classList.remove("tema-negro");
-      } else {
-        document.documentElement.style.setProperty("--bg", "#000");
-        document.documentElement.style.setProperty("--fg", "#f2f2f2");
-        document.documentElement.style.setProperty("--muted", "#7a7a7a");
-        app.classList.add("tema-negro"); app.classList.remove("tema-blanco");
-      }
-    }
-    function toggleTheme(){ setTheme(app.classList.contains("tema-negro") ? "blanco" : "negro"); }
-
-    // ---------- Toast ----------
-    let toastT;
-    function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+    let toastT; function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show");
       clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1400); }
 
-    // ---------- Pantalla completa ----------
-    function toggleFull(){
-      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
-      else document.exitFullscreen?.();
-    }
+    // ---------- Paneles ----------
+    const idx=$("#indexDrawer"), scr=$("#scriptDrawer");
+    const openIndex=()=>{ closeScript(); idx.classList.add("open"); };
+    const closeIndex=()=>idx.classList.remove("open");
+    const openScript=()=>{ closeIndex(); scr.classList.add("open"); };
+    const closeScript=()=>scr.classList.remove("open");
 
-    // ---------- Drawer / JSON ----------
-    const drawer = $("#drawer");
-    function openDrawer(){ drawer.classList.add("open"); }
-    function closeDrawer(){ drawer.classList.remove("open"); }
-
+    // ---------- JSON ----------
     function loadJSON(showToast){
-      const raw = $("#jsonInput").value.trim();
-      $("#jsonError").textContent = "";
-      if (!raw){ $("#jsonError").textContent = "Pegá un JSON primero."; return; }
-      let data;
-      try { data = JSON.parse(raw); }
-      catch(e){ $("#jsonError").textContent = "JSON inválido: " + e.message; return; }
-      if (!data.bloques || !Array.isArray(data.bloques)){
-        $("#jsonError").textContent = 'Falta el arreglo "bloques".'; return;
-      }
-      render(data);
-      localStorage.setItem("teleprompter_guion", raw);
-      if (showToast){ toast("Guión cargado ✓"); closeDrawer(); }
+      const raw=$("#jsonInput").value.trim(); $("#jsonError").textContent="";
+      if(!raw){ $("#jsonError").textContent="Pegá un JSON primero."; return; }
+      let data; try{ data=looseParse(raw); }catch(e){ $("#jsonError").textContent="JSON inválido: "+e.message; return; }
+      const norm=normalize(data);
+      if(!norm.piezas.length){ $("#jsonError").textContent='No encontré "piezas" (ni "bloques").'; return; }
+      render(data); localStorage.setItem("mrb_teleprompter", raw);
+      if(showToast){ toast("Guión cargado"); closeScript(); }
     }
 
-    // ---------- Persistencia ----------
     function loadInitial(){
-      const saved = localStorage.getItem("teleprompter_guion");
-      const data = saved ? safeParse(saved) : null;
-      const use = data || EJEMPLO;
-      $("#jsonInput").value = JSON.stringify(use, null, 2);
+      const saved=localStorage.getItem("mrb_teleprompter");
+      const data=saved?safeParse(saved):null; const use=data||EJEMPLO;
+      $("#jsonInput").value = saved || JSON.stringify(EJEMPLO,null,2);
       render(use);
     }
-    function safeParse(s){ try{ return JSON.parse(s); }catch{ return null; } }
 
     // ---------- Esquema (doc para Claude) ----------
-    const SCHEMA_HTML = `
-      <p class="d">Estructura JSON que entiende el teleprompter. Copiala y pedile a Claude:
-      <em>"adaptá este guión a esta estructura JSON"</em>.</p>
+    $("#schemaHtml").innerHTML=`
+      <p class="d">Estructura que entiende el teleprompter. Copiala con <b>Copiar plantilla</b> y pedile a Claude:
+        <em>"adaptá los guiones de la semana a esta estructura JSON"</em>. Acepta comentarios <code>//</code>.</p>
       <h3>Raíz</h3>
-      <div class="row"><span class="k">meta</span><span class="d">datos del guión (opcional)</span></div>
-      <div class="row"><span class="k">config</span><span class="d">ajustes iniciales (opcional)</span></div>
-      <div class="row"><span class="k">bloques[]</span><span class="d">lista ordenada de bloques (obligatorio)</span></div>
+      <div class="row"><span class="k">meta</span><span class="d">datos de la semana (opcional)</span></div>
+      <div class="row"><span class="k">config</span><span class="d">velocidad, tamanoTexto, oscuro (opcional)</span></div>
+      <div class="row"><span class="k">piezas[]</span><span class="d">lista de piezas (obligatorio)</span></div>
       <h3>meta</h3>
-      <div class="row"><span class="k">titulo</span><span class="d">nombre del guión</span></div>
-      <div class="row"><span class="k">autor</span><span class="d">quién lo escribió</span></div>
-      <div class="row"><span class="k">duracionEstimada</span><span class="d">ej. "60s"</span></div>
-      <div class="row"><span class="k">notas</span><span class="d">texto libre</span></div>
-      <h3>config</h3>
-      <div class="row"><span class="k">velocidad</span><span class="d">px/seg (5–200)</span></div>
-      <div class="row"><span class="k">tamanoTexto</span><span class="d">px (24–120)</span></div>
-      <div class="row"><span class="k">tema</span><span class="d">"negro" | "blanco"</span></div>
-      <div class="row"><span class="k">espejo</span><span class="d">true | false (teleprompter físico)</span></div>
-      <h3>bloques[].tipo</h3>
-      <div class="row"><span class="k">gancho</span><span class="d">frase de apertura (primeros 3 seg)</span></div>
-      <div class="row"><span class="k">titulo</span><span class="d">separador / nombre de sección</span></div>
-      <div class="row"><span class="k">entrevistador</span><span class="d">pregunta · usa "nombre"</span></div>
-      <div class="row"><span class="k">entrevistado</span><span class="d">respuesta · usa "nombre"</span></div>
-      <div class="row"><span class="k">narracion</span><span class="d">texto a cámara / voz en off</span></div>
-      <div class="row"><span class="k">direccion</span><span class="d">indicación (no se lee): "mirá a cámara"</span></div>
-      <div class="row"><span class="k">broll</span><span class="d">nota de plano de apoyo</span></div>
-      <div class="row"><span class="k">cta</span><span class="d">llamada a la acción</span></div>
-      <div class="row"><span class="k">pausa</span><span class="d">silencio / respiro</span></div>
-      <h3>Campos de bloque</h3>
-      <div class="row"><span class="k">texto</span><span class="d">contenido del bloque</span></div>
-      <div class="row"><span class="k">nombre</span><span class="d">quién habla (entrevistador/entrevistado)</span></div>
-    `;
-    $("#schemaHtml").innerHTML = SCHEMA_HTML;
+      <div class="row"><span class="k">influencer / handle</span><span class="d">quién graba</span></div>
+      <div class="row"><span class="k">marca</span><span class="d">marca del guión</span></div>
+      <div class="row"><span class="k">semana</span><span class="d">número de semana</span></div>
+      <div class="row"><span class="k">registro</span><span class="d">tono, ej. "voseo_ar"</span></div>
+      <div class="row"><span class="k">distribucion_objetivo</span><span class="d">% por categoría (problema/solucion/otros/producto)</span></div>
+      <h3>piezas[]</h3>
+      <div class="row"><span class="k">id / dia</span><span class="d">identificador y día</span></div>
+      <div class="row"><span class="k">titulo</span><span class="d">nombre de la pieza</span></div>
+      <div class="row"><span class="k">categoria</span><span class="d">problema · solucion · producto · otros</span></div>
+      <div class="row"><span class="k">familia</span><span class="d">rescate · internacionalizacion · capital · nucleo</span></div>
+      <div class="row"><span class="k">formato</span><span class="d">reel · carrusel</span></div>
+      <div class="row"><span class="k">tipo_video</span><span class="d">hablando a cámara · entrevista · selfie · escritorio</span></div>
+      <div class="row"><span class="k">estado</span><span class="d">grabada · pendiente · en_revision</span></div>
+      <div class="row"><span class="k">cta</span><span class="d">{ tipo, palabra, recurso }</span></div>
+      <div class="row"><span class="k">bloques[]</span><span class="d">contenido de la pieza</span></div>
+      <h3>bloques[]</h3>
+      <div class="row"><span class="k">rol</span><span class="d">hook · problema · solucion · prueba_social · cta · contenido · direccion…</span></div>
+      <div class="row"><span class="k">label</span><span class="d">rótulo que se muestra (si falta se deriva del rol)</span></div>
+      <div class="row"><span class="k">texto</span><span class="d">lo que se lee en cámara</span></div>
+      <div class="row"><span class="k">slide</span><span class="d">número de slide (para carrusel)</span></div>
+      <div class="row"><span class="k">pregunta_guia</span><span class="d">pregunta guía (entrevistas) — se muestra atenuada</span></div>
+      <h3>cta</h3>
+      <div class="row"><span class="k">tipo</span><span class="d">palabra_clave · seguir · guardar</span></div>
+      <div class="row"><span class="k">palabra</span><span class="d">palabra clave del comentario</span></div>
+      <div class="row"><span class="k">recurso</span><span class="d">lead magnet que entregás</span></div>`;
 
     // ---------- Eventos ----------
-    $("#btnPlay").onclick = toggle;
-    $("#btnRestart").onclick = restart;
-    $("#speed").oninput = syncSpeed;
-    $("#fs").oninput = syncFs;
-    $("#width").oninput = syncWidth;
-    $("#lh").oninput = syncLh;
-    $("#btnTheme").onclick = toggleTheme;
-    $("#btnMirrorH").onclick = () => { app.classList.toggle("mirror-h"); $("#btnMirrorH").classList.toggle("on"); };
-    $("#btnReadline").onclick = () => { app.classList.toggle("readline"); $("#btnReadline").classList.toggle("on"); };
-    $("#btnFocus").onclick = () => { app.classList.toggle("focus"); $("#btnFocus").classList.toggle("on"); };
-    $("#btnFull").onclick = toggleFull;
-    $("#btnDrawer").onclick = () => drawer.classList.contains("open") ? closeDrawer() : openDrawer();
-    $("#btnCloseDrawer").onclick = closeDrawer;
-    $("#btnApply").onclick = () => loadJSON(true);
-    $("#btnExample").onclick = () => { $("#jsonInput").value = JSON.stringify(EJEMPLO, null, 2); loadJSON(false); toast("Ejemplo cargado"); };
-    $("#btnFormat").onclick = () => { const d=safeParse($("#jsonInput").value); if(d){ $("#jsonInput").value = JSON.stringify(d,null,2); $("#jsonError").textContent=""; } else $("#jsonError").textContent="No se puede formatear: JSON inválido."; };
-    $("#btnCopySchema").onclick = () => {
-      const plantilla = { meta:{titulo:"",autor:"",duracionEstimada:"",notas:""},
-        config:{velocidad:40,tamanoTexto:46,tema:"negro",espejo:false},
-        bloques:[{tipo:"gancho",texto:""},{tipo:"titulo",texto:""},
-          {tipo:"entrevistador",nombre:"",texto:""},{tipo:"entrevistado",nombre:"",texto:""},
-          {tipo:"direccion",texto:""},{tipo:"broll",texto:""},{tipo:"cta",texto:""}] };
-      navigator.clipboard?.writeText(JSON.stringify(plantilla,null,2));
-      toast("Plantilla copiada ✓");
+    $("#btnPlay").onclick=toggle;
+    $("#btnRestart").onclick=restart;
+    $("#btnIndex").onclick=()=>idx.classList.contains("open")?closeIndex():openIndex();
+    $("#btnScript").onclick=()=>scr.classList.contains("open")?closeScript():openScript();
+    $("#closeIndex").onclick=closeIndex; $("#closeScript").onclick=closeScript;
+    $("#speed").oninput=syncSpeed; $("#fs").oninput=syncFs;
+    $("#chkMirror").onchange=e=>app.classList.toggle("mirror-h",e.target.checked);
+    $("#chkDark").onchange=e=>setDark(e.target.checked);
+    $("#btnReadline").onclick=()=>{ app.classList.toggle("readline"); $("#btnReadline").classList.toggle("on"); };
+    $("#btnFont").onclick=()=>{ serif=!serif; setFont(); $("#btnFont").classList.toggle("on",serif); toast(serif?"Serif":"Urbanist"); };
+    $("#btnFull").onclick=toggleFull;
+    $("#btnApply").onclick=()=>loadJSON(true);
+    $("#btnExample").onclick=()=>{ $("#jsonInput").value=JSON.stringify(EJEMPLO,null,2); loadJSON(false); toast("Ejemplo cargado"); };
+    $("#btnFormat").onclick=()=>{ const d=safeParse($("#jsonInput").value); if(d){ $("#jsonInput").value=JSON.stringify(d,null,2); $("#jsonError").textContent=""; } else $("#jsonError").textContent="No se puede formatear: JSON inválido."; };
+    $("#btnCopyTemplate").onclick=()=>{
+      const plantilla={ meta:{ influencer:"", handle:"", marca:"", semana:1, registro:"voseo_ar",
+          distribucion_objetivo:{ problema:50, solucion:30, otros:20, producto:"condimento" } },
+        config:{ velocidad:40, tamanoTexto:44, oscuro:false },
+        piezas:[{ id:1, dia:1, titulo:"", categoria:"problema", familia:"rescate", formato:"reel",
+          tipo_video:"hablando a cámara", estado:"pendiente",
+          cta:{ tipo:"palabra_clave", palabra:"", recurso:"" },
+          bloques:[
+            { rol:"hook", label:"Hook (0-3s)", texto:"" },
+            { rol:"problema", label:"Problema", texto:"" },
+            { rol:"solucion", label:"Solución", texto:"" },
+            { rol:"prueba_social", label:"Prueba social", texto:"" },
+            { rol:"cta", label:"CTA", texto:"" }
+          ] }] };
+      navigator.clipboard?.writeText(JSON.stringify(plantilla,null,2)); toast("Plantilla copiada");
     };
-    $("#btnDownload").onclick = () => {
-      const blob = new Blob([$("#jsonInput").value], {type:"application/json"});
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-      a.download = "guion.json"; a.click(); URL.revokeObjectURL(a.href);
-    };
-    $("#fileInput").onchange = (e) => {
-      const f = e.target.files[0]; if(!f) return;
-      const r = new FileReader(); r.onload = () => { $("#jsonInput").value = r.result; loadJSON(true); }; r.readAsText(f);
-    };
+    $("#btnDownload").onclick=()=>{ const b=new Blob([$("#jsonInput").value],{type:"application/json"});
+      const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="guiones.json"; a.click(); URL.revokeObjectURL(a.href); };
+    $("#fileInput").onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+      r.onload=()=>{ $("#jsonInput").value=r.result; loadJSON(true); }; r.readAsText(f); };
 
-    // Tabs del drawer
-    document.querySelectorAll(".drawer-tabs button").forEach(b => b.onclick = () => {
-      document.querySelectorAll(".drawer-tabs button").forEach(x=>x.classList.remove("active"));
-      document.querySelectorAll(".drawer-body .pane").forEach(x=>x.classList.remove("active"));
-      b.classList.add("active");
-      $(`.pane[data-pane="${b.dataset.tab}"]`).classList.add("active");
+    document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
+      document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
+      document.querySelectorAll("[data-pane]").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active"); $(`[data-pane="${b.dataset.tab}"]`).classList.add("active");
     });
 
-    // Auto-ocultar barra en reproducción
-    let hideT;
-    function showBars(){ app.classList.remove("immersive"); clearTimeout(hideT);
-      if (playing) hideT = setTimeout(()=>app.classList.add("immersive"), 2500); }
-    ["mousemove","touchstart","keydown"].forEach(ev => window.addEventListener(ev, showBars, {passive:true}));
+    // Auto-ocultar chrome al reproducir
+    let hideT; function showBars(){ app.classList.remove("immersive"); clearTimeout(hideT);
+      if(playing) hideT=setTimeout(()=>app.classList.add("immersive"),2500); }
+    ["mousemove","touchstart","keydown"].forEach(ev=>window.addEventListener(ev,showBars,{passive:true}));
 
-    // Tap en el escenario = play/pausa
-    $("#stage").addEventListener("click", (e) => {
-      if (drawer.classList.contains("open")) return;
-      if (e.target.closest("#topbar")) return;
-      toggle();
-    });
+    $("#stage").addEventListener("click",e=>{ if(idx.classList.contains("open")||scr.classList.contains("open")) return; toggle(); });
 
-    // Teclado
-    window.addEventListener("keydown", (e) => {
-      const typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
-      if (typing && e.key !== "Escape") return;
+    window.addEventListener("keydown",e=>{
+      const typing=/INPUT|TEXTAREA/.test(document.activeElement.tagName);
+      if(typing&&e.key!=="Escape") return;
       switch(e.key){
         case " ": e.preventDefault(); toggle(); break;
-        case "ArrowUp": e.preventDefault(); $("#speed").value = Math.min(200, +$("#speed").value + 3); syncSpeed(); break;
-        case "ArrowDown": e.preventDefault(); $("#speed").value = Math.max(5, +$("#speed").value - 3); syncSpeed(); break;
+        case "ArrowUp": e.preventDefault(); $("#speed").value=Math.min(200,+$("#speed").value+3); syncSpeed(); break;
+        case "ArrowDown": e.preventDefault(); $("#speed").value=Math.max(5,+$("#speed").value-3); syncSpeed(); break;
         case "ArrowRight": e.preventDefault(); jump(1); break;
         case "ArrowLeft": e.preventDefault(); jump(-1); break;
-        case "+": case "=": $("#fs").value = Math.min(120, +$("#fs").value + 2); syncFs(); break;
-        case "-": case "_": $("#fs").value = Math.max(24, +$("#fs").value - 2); syncFs(); break;
+        case "+": case "=": $("#fs").value=Math.min(120,+$("#fs").value+2); syncFs(); break;
+        case "-": case "_": $("#fs").value=Math.max(24,+$("#fs").value-2); syncFs(); break;
         case "r": case "R": restart(); break;
-        case "b": case "B": toggleTheme(); break;
-        case "m": case "M": app.classList.toggle("mirror-h"); $("#btnMirrorH").classList.toggle("on"); break;
+        case "b": case "B": setDark(!app.classList.contains("oscuro")); break;
+        case "m": case "M": $("#chkMirror").checked=!$("#chkMirror").checked; app.classList.toggle("mirror-h",$("#chkMirror").checked); break;
         case "l": case "L": app.classList.toggle("readline"); $("#btnReadline").classList.toggle("on"); break;
+        case "t": case "T": serif=!serif; setFont(); $("#btnFont").classList.toggle("on",serif); break;
         case "f": case "F": toggleFull(); break;
-        case "g": case "G": drawer.classList.contains("open") ? closeDrawer() : openDrawer(); break;
+        case "g": case "G": scr.classList.contains("open")?closeScript():openScript(); break;
+        case "i": case "I": idx.classList.contains("open")?closeIndex():openIndex(); break;
         case "Home": resetScroll(); break;
-        case "Escape": if (drawer.classList.contains("open")) closeDrawer(); break;
+        case "Escape": closeIndex(); closeScript(); break;
       }
     });
 
     // ---------- Init ----------
-    syncSpeed(); syncFs(); syncWidth(); syncLh();
-    loadInitial();
+    syncSpeed(); syncFs(); loadInitial();
   })();
   </script>
 </body>

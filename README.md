@@ -1,80 +1,91 @@
-# Teleprompter para Reels & Entrevistas
+# Teleprompter · Studio MRB
 
-Teleprompter que corre en el navegador, pensado para grabar reels y entrevistas
-en una sola toma. Es **un solo archivo** (`index.html`), sin dependencias ni
-instalación: se abre con doble clic en cualquier navegador y funciona offline.
+Teleprompter que corre en el navegador, pensado para grabar los reels y
+carruseles de la semana en una sola toma. Es **un solo archivo** (`index.html`),
+sin dependencias ni instalación: se abre con doble clic en cualquier navegador y
+funciona offline.
+
+El diseño sigue el **brand design de Studio MRB**: sistema monocromático (negro,
+blanco y rampa slate, **sin colores de acento**), tipografía **Urbanist**, y la
+jerarquía construida con peso, escala, mayúsculas y tracking en vez de color.
 
 ## Cómo usarlo
 
-1. Abrí `index.html` en el navegador (Chrome, Safari, Firefox, Edge).
-2. Tocá **Play** (o barra espaciadora) — arranca con cuenta regresiva 3·2·1.
-3. Ajustá velocidad, tamaño y demás desde la barra superior.
-4. Para tu guión: abrí **☰ Guión**, pegá tu JSON y tocá **Cargar guión**.
+1. Abrí `index.html` en el navegador.
+2. **Guión** (`{ }` o tecla `G`): pegá el JSON de la semana → **Cargar guión**.
+3. **Índice** (`≡` o tecla `I`): saltá entre piezas y mirá la distribución de contenido.
+4. **Reproducir** (barra espaciadora): arranca con cuenta regresiva 3·2·1.
 
-El guión y los ajustes se guardan solos en tu navegador (localStorage).
+El guión y los ajustes se guardan solos en el navegador (localStorage).
 
 ## Funciones
 
-- **Velocidad** de scroll ajustable (px/seg), en vivo.
-- **Fondo negro o blanco** (tecla `B`).
-- **Tipografía serif** (Georgia) grande y legible; tamaño ajustable.
-- **Ancho de columna** e **interlineado** regulables.
-- **Formatos por tipo de bloque**: gancho, título, entrevistador, entrevistado,
-  narración, dirección de escena, B-roll, CTA y pausa — cada uno con su estilo.
-- **Espejo horizontal/vertical** para teleprompter físico con cristal (tecla `M`).
-- **Línea de lectura** y **modo foco** (viñeta) para fijar la mirada.
-- **Cuenta regresiva** antes de empezar.
-- **Barra de progreso** del guión.
-- **Barra que se auto-oculta** al reproducir (para que la cámara solo vea el texto).
-- **Pantalla completa** (tecla `F`) y **saltar entre bloques** (`←` / `→`).
-- **Importar/exportar** guiones `.json`.
+- **Velocidad** de scroll y **tamaño** de texto ajustables en vivo.
+- **Fondo claro/oscuro** (checkbox *Oscuro*, tecla `B`) — el oscuro es negro puro,
+  ideal para el cristal de un teleprompter físico.
+- **Espejo** horizontal para rig con cristal (checkbox *Espejo*, tecla `M`).
+- **Tipografía Urbanist** (marca) o **Serif** conmutable (`Aa`, tecla `T`).
+- **Formatos por rol de bloque**: hook, problema, solución, prueba social, CTA,
+  contenido, dirección… El **CTA** se muestra como la tarjeta invertida de marca.
+- **Índice de piezas** con estado (grabada / pendiente / en revisión) y
+  **distribución de contenido** real vs. objetivo por categoría.
+- **Línea de lectura**, **modo foco**, **cuenta regresiva**, **barra de progreso**,
+  **pantalla completa** y **barra que se auto-oculta** al grabar.
+- **Parser tolerante**: acepta comentarios `//` y comas finales, así pegás
+  directo lo que te genera Claude.
 
 ## Atajos de teclado
 
-| Tecla | Acción |
-|-------|--------|
-| Espacio | Play / Pausa |
-| ↑ / ↓ | Velocidad |
-| + / − | Tamaño de texto |
-| ← / → | Saltar bloque |
-| R | Reiniciar |
-| B | Fondo negro / blanco |
-| M | Espejo horizontal |
-| L | Línea de lectura |
-| F | Pantalla completa |
-| G | Panel de guión |
-| Home | Ir al inicio |
-| Esc | Cerrar panel |
+| Tecla | Acción | Tecla | Acción |
+|-------|--------|-------|--------|
+| Espacio | Play / Pausa | `B` | Fondo claro/oscuro |
+| ↑ / ↓ | Velocidad | `M` | Espejo |
+| + / − | Tamaño | `L` | Línea de lectura |
+| ← / → | Saltar bloque | `T` | Tipografía |
+| `I` | Índice | `F` | Pantalla completa |
+| `R` | Reiniciar | `G` | Panel de guión |
+| Home | Ir al inicio | Esc | Cerrar paneles |
 
 ## Estructura del guión (JSON)
 
-Esta es la estructura que entiende la app. Copiala y pedile a Claude:
-*"adaptá este guión a esta estructura JSON"*.
+Esta es la estructura que entiende la app. Dentro del panel **Guión → Estructura**
+está documentada, y el botón **Copiar plantilla** la deja lista para pasarle a
+Claude. El parser acepta comentarios `//`.
 
-```json
+```jsonc
 {
   "meta": {
-    "titulo": "Nombre del guión",
-    "autor": "Studio MRB",
-    "duracionEstimada": "60s",
-    "notas": "texto libre"
+    "influencer": "Federico Colrat",
+    "handle": "Accounting Advisor",
+    "marca": "FINANCERS",
+    "semana": 1,
+    "registro": "voseo_ar",
+    "distribucion_objetivo": { "problema": 50, "solucion": 30, "otros": 20, "producto": "condimento" }
   },
-  "config": {
-    "velocidad": 40,
-    "tamanoTexto": 46,
-    "tema": "negro",
-    "espejo": false
-  },
-  "bloques": [
-    { "tipo": "gancho", "texto": "Frase de apertura (primeros 3 segundos)" },
-    { "tipo": "titulo", "texto": "Bloque 1 · Presentación" },
-    { "tipo": "direccion", "texto": "Mirá a cámara, sonreí, pausa de 1 seg" },
-    { "tipo": "entrevistador", "nombre": "Ana", "texto": "¿Cómo empezó todo?" },
-    { "tipo": "entrevistado", "nombre": "Martín", "texto": "Empezó en el living..." },
-    { "tipo": "broll", "texto": "plano detalle de las manos" },
-    { "tipo": "narracion", "texto": "Texto a cámara o voz en off" },
-    { "tipo": "pausa", "texto": "" },
-    { "tipo": "cta", "texto": "Seguime para la parte 2 👇" }
+  "config": { "velocidad": 40, "tamanoTexto": 44, "oscuro": false },
+  "piezas": [
+    {
+      "id": 3,
+      "dia": 2,
+      "titulo": "Multa \"no me avisaron\"",
+      "categoria": "problema",          // problema | solucion | producto | otros
+      "familia": "rescate",             // rescate | internacionalizacion | capital | nucleo
+      "formato": "reel",                // reel | carrusel
+      "tipo_video": "hablando a cámara",// hablando a cámara | entrevista | selfie | escritorio
+      "estado": "grabada",              // grabada | pendiente | en_revision
+      "cta": {
+        "tipo": "palabra_clave",        // palabra_clave | seguir | guardar
+        "palabra": "MULTA",
+        "recurso": "chequeo de obligaciones anuales"
+      },
+      "bloques": [
+        { "rol": "hook",          "label": "Hook (0-3s)",   "slide": null, "pregunta_guia": null, "texto": "..." },
+        { "rol": "problema",      "label": "Problema",      "slide": null, "pregunta_guia": null, "texto": "..." },
+        { "rol": "solucion",      "label": "Solución",      "slide": null, "pregunta_guia": null, "texto": "..." },
+        { "rol": "prueba_social", "label": "Prueba social", "slide": null, "pregunta_guia": null, "texto": "..." },
+        { "rol": "cta",           "label": "CTA",           "slide": null, "pregunta_guia": null, "texto": "..." }
+      ]
+    }
   ]
 }
 ```
@@ -85,45 +96,48 @@ Esta es la estructura que entiende la app. Copiala y pedile a Claude:
 
 | Campo | Requerido | Descripción |
 |-------|-----------|-------------|
-| `meta` | no | Datos del guión |
-| `config` | no | Ajustes iniciales |
-| `bloques` | **sí** | Lista ordenada de bloques |
+| `meta` | no | Datos de la semana |
+| `config` | no | `velocidad`, `tamanoTexto`, `oscuro` |
+| `piezas` | **sí** | Lista de piezas |
 
-**`config`**
+**`piezas[]`**
 
 | Campo | Valores |
 |-------|---------|
-| `velocidad` | px/seg, 5–200 |
-| `tamanoTexto` | px, 24–120 |
-| `tema` | `"negro"` \| `"blanco"` |
-| `espejo` | `true` \| `false` |
+| `id` / `dia` | identificador y día |
+| `titulo` | nombre de la pieza |
+| `categoria` | `problema` · `solucion` · `producto` · `otros` |
+| `familia` | `rescate` · `internacionalizacion` · `capital` · `nucleo` |
+| `formato` | `reel` · `carrusel` |
+| `tipo_video` | `hablando a cámara` · `entrevista` · `selfie` · `escritorio` |
+| `estado` | `grabada` · `pendiente` · `en_revision` |
+| `cta` | `{ tipo, palabra, recurso }` |
+| `bloques` | contenido de la pieza |
 
-**Tipos de bloque (`bloques[].tipo`)**
-
-| Tipo | Uso | Se lee en cámara |
-|------|-----|------------------|
-| `gancho` | Frase de apertura, primeros 3 seg | sí |
-| `titulo` | Separador / nombre de sección | referencia |
-| `entrevistador` | Pregunta (usa `nombre`) | sí |
-| `entrevistado` | Respuesta (usa `nombre`) | sí |
-| `narracion` | Texto a cámara / voz en off | sí |
-| `direccion` | Indicación de escena ("mirá a cámara") | **no**, es una nota |
-| `broll` | Nota de plano de apoyo | **no**, es una nota |
-| `cta` | Llamada a la acción | sí |
-| `pausa` | Silencio / respiro | referencia |
-
-**Campos de cada bloque**
+**`bloques[]`**
 
 | Campo | Descripción |
 |-------|-------------|
-| `texto` | Contenido del bloque |
-| `nombre` | Quién habla (para `entrevistador` / `entrevistado`) |
+| `rol` | `hook` · `problema` · `solucion` · `prueba_social` · `cta` · `contenido` · `direccion`… (define el estilo) |
+| `label` | rótulo mostrado (si falta, se deriva del `rol`) |
+| `texto` | lo que se lee en cámara |
+| `slide` | número de slide (para carruseles) |
+| `pregunta_guia` | pregunta guía de entrevista — se muestra atenuada, no forma parte del texto |
+
+**`cta`**
+
+| Campo | Valores |
+|-------|---------|
+| `tipo` | `palabra_clave` · `seguir` · `guardar` |
+| `palabra` | palabra clave del comentario |
+| `recurso` | lead magnet que entregás |
 
 ## Prompt sugerido para Claude
 
-> Adaptá el siguiente guión a esta estructura JSON de teleprompter.
-> Marcá el gancho inicial, separá preguntas (`entrevistador`) y respuestas
-> (`entrevistado`), agregá bloques `direccion` con indicaciones de cámara,
-> notas `broll` donde convenga, y cerrá con un `cta`. Devolvé solo el JSON.
+> Adaptá los guiones de esta semana a la estructura JSON del teleprompter Studio MRB.
+> Cada guión es una `pieza` con su `categoria`, `familia`, `formato`, `tipo_video`,
+> `estado` y `cta`. Separá el contenido en `bloques` con `rol` (hook, problema,
+> solucion, prueba_social, cta…). Respetá el registro `voseo_ar`. Mantené la
+> `distribucion_objetivo` de la semana. Devolvé solo el JSON.
 >
-> [pegás tu guión acá]
+> [pegás tus guiones acá]
