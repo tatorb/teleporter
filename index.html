@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Teleprompter · Reels & Entrevistas</title>
+  <style>
+    :root {
+      --speed: 40;
+      --fs: 46px;
+      --lh: 1.5;
+      --width: 88%;
+      --bg: #000;
+      --fg: #f2f2f2;
+      --muted: #7a7a7a;
+      --accent: #ff4d4d;
+      --panel: rgba(18,18,20,.92);
+      --border: rgba(255,255,255,.12);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---------- Layout general ---------- */
+    #app { height: 100%; display: flex; flex-direction: column; }
+
+    /* ---------- Barra de control superior ---------- */
+    #topbar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      z-index: 40; flex-wrap: wrap;
+      transition: opacity .35s, transform .35s;
+    }
+    #app.playing.immersive #topbar { opacity: 0; transform: translateY(-100%); pointer-events: none; }
+
+    .group { display: flex; align-items: center; gap: 6px; }
+    .sep { width: 1px; height: 26px; background: var(--border); margin: 0 4px; }
+
+    button, .btn {
+      font: inherit; color: var(--fg);
+      background: rgba(255,255,255,.07);
+      border: 1px solid var(--border);
+      border-radius: 9px; padding: 8px 12px;
+      cursor: pointer; user-select: none;
+      display: inline-flex; align-items: center; gap: 6px;
+      transition: background .15s, border-color .15s, transform .05s;
+      white-space: nowrap; font-size: 13px;
+    }
+    button:hover, .btn:hover { background: rgba(255,255,255,.14); }
+    button:active { transform: scale(.96); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    button.primary:hover { filter: brightness(1.1); }
+    button.on { background: rgba(255,77,77,.22); border-color: var(--accent); }
+    button.icon { padding: 8px 10px; }
+
+    label.field { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+    input[type=range] { width: 120px; accent-color: var(--accent); cursor: pointer; }
+    .val { min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; color: var(--fg); font-size: 13px; }
+
+    .spacer { flex: 1 1 auto; }
+
+    /* ---------- Zona del prompter ---------- */
+    #stage { position: relative; flex: 1 1 auto; overflow: hidden; }
+
+    #scroller {
+      position: absolute; inset: 0;
+      overflow-y: scroll;
+      scrollbar-width: none;
+      scroll-behavior: auto;
+    }
+    #scroller::-webkit-scrollbar { display: none; }
+
+    #script {
+      max-width: var(--width);
+      margin: 0 auto;
+      padding: 60vh 4vw 90vh;
+      font-family: Georgia, "Times New Roman", "Iowan Old Style", serif;
+      font-size: var(--fs);
+      line-height: var(--lh);
+      letter-spacing: .3px;
+    }
+
+    /* Mirror para teleprompter físico (cristal) */
+    #app.mirror-h #script { transform: scaleX(-1); }
+    #app.mirror-v #script { transform: scaleY(-1); }
+    #app.mirror-h.mirror-v #script { transform: scale(-1, -1); }
+
+    /* ---------- Bloques del guión ---------- */
+    .bloque { margin: 0 0 .85em; scroll-margin-top: 40vh; }
+    .bloque.activo { }
+
+    .b-titulo {
+      text-align: center; font-weight: 700;
+      font-size: 1.12em; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--fg); margin: 1.4em 0 .7em; opacity: .95;
+    }
+    .b-titulo::after {
+      content: ""; display: block; width: 70px; height: 3px;
+      background: var(--accent); margin: .35em auto 0; border-radius: 2px;
+    }
+
+    .b-gancho {
+      font-weight: 700; font-size: 1.15em; color: var(--fg);
+      background: linear-gradient(90deg, rgba(255,77,77,.16), transparent);
+      border-left: 5px solid var(--accent);
+      padding: .35em .6em; border-radius: 6px;
+    }
+    .b-gancho .tag { color: var(--accent); }
+
+    .locutor { display: block; font-family: -apple-system, sans-serif;
+      font-size: .5em; letter-spacing: 2px; text-transform: uppercase;
+      font-weight: 700; margin-bottom: .25em; opacity: .85; }
+
+    .b-entrevistador { }
+    .b-entrevistador .locutor { color: #56b6ff; }
+    .b-entrevistador .cuerpo { color: #cfe6ff; font-style: italic; }
+
+    .b-entrevistado { }
+    .b-entrevistado .locutor { color: #7CFFB2; }
+    .b-entrevistado .cuerpo { color: var(--fg); }
+
+    .b-narracion .cuerpo { color: var(--fg); }
+    .b-narracion .locutor { color: var(--muted); }
+
+    .b-direccion {
+      font-family: -apple-system, sans-serif; font-size: .62em;
+      color: var(--muted); font-style: italic;
+      border: 1px dashed var(--border); border-radius: 8px;
+      padding: .5em .7em; margin: .6em auto; text-align: center;
+      max-width: 80%; opacity: .8;
+    }
+    .b-direccion::before { content: "🎬 "; }
+
+    .b-broll {
+      font-family: -apple-system, sans-serif; font-size: .55em;
+      color: #ffd27a; text-transform: uppercase; letter-spacing: 1px;
+      border-left: 3px solid #ffd27a; background: rgba(255,210,122,.08);
+      padding: .4em .7em; border-radius: 4px; margin: .6em 0; opacity: .85;
+    }
+    .b-broll::before { content: "🎥 B-ROLL · "; opacity: .7; }
+
+    .b-cta {
+      text-align: center; font-weight: 700; font-size: 1.1em;
+      color: #fff; background: var(--accent);
+      padding: .5em .7em; border-radius: 12px; margin: 1em auto;
+      max-width: 85%;
+    }
+    .b-cta::before { content: "👉 "; }
+
+    .b-pausa {
+      text-align: center; color: var(--muted); font-size: .5em;
+      letter-spacing: 4px; margin: .8em 0; opacity: .6;
+    }
+
+    /* ---------- Línea de lectura / foco ---------- */
+    #readline {
+      position: absolute; left: 0; right: 0; top: 40%;
+      height: 0; border-top: 2px solid var(--accent);
+      box-shadow: 0 0 18px rgba(255,77,77,.5);
+      pointer-events: none; z-index: 20; display: none;
+    }
+    #readline::before, #readline::after {
+      content: ""; position: absolute; top: -7px;
+      border: 7px solid transparent;
+    }
+    #readline::before { left: 0; border-left-color: var(--accent); }
+    #readline::after { right: 0; border-right-color: var(--accent); }
+    #app.readline #readline { display: block; }
+
+    /* Viñeta oscura para foco */
+    #vignette {
+      position: absolute; inset: 0; pointer-events: none; z-index: 10;
+      display: none;
+      background: linear-gradient(to bottom,
+        var(--bg) 0%, transparent 22%, transparent 78%, var(--bg) 100%);
+      opacity: .85;
+    }
+    #app.focus #vignette { display: block; }
+
+    /* Barra de progreso */
+    #progress {
+      position: absolute; left: 0; bottom: 0; height: 4px;
+      background: var(--accent); width: 0%; z-index: 30;
+      box-shadow: 0 0 10px var(--accent); transition: width .1s linear;
+    }
+
+    /* ---------- Cuenta regresiva ---------- */
+    #countdown {
+      position: absolute; inset: 0; z-index: 60;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,.7); font-size: 22vh; font-weight: 800;
+      color: var(--accent); font-variant-numeric: tabular-nums;
+    }
+    #countdown.show { display: flex; }
+
+    /* ---------- Panel de guión (JSON) ---------- */
+    #drawer {
+      position: absolute; top: 0; right: 0; bottom: 0; width: min(560px, 92vw);
+      background: var(--panel); border-left: 1px solid var(--border);
+      backdrop-filter: blur(14px); z-index: 50;
+      transform: translateX(100%); transition: transform .3s ease;
+      display: flex; flex-direction: column;
+    }
+    #drawer.open { transform: translateX(0); }
+    .drawer-head { display: flex; align-items: center; gap: 10px;
+      padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .drawer-head h2 { font-size: 15px; font-weight: 700; }
+    .drawer-tabs { display: flex; gap: 6px; padding: 10px 16px 0; }
+    .drawer-tabs button { font-size: 12px; padding: 6px 10px; }
+    .drawer-tabs button.active { background: rgba(255,77,77,.2); border-color: var(--accent); }
+    .drawer-body { flex: 1; overflow: auto; padding: 14px 16px; }
+    .drawer-body .pane { display: none; }
+    .drawer-body .pane.active { display: block; }
+
+    textarea {
+      width: 100%; height: 46vh; resize: vertical;
+      background: #0c0c0e; color: #d6d6d6; border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px;
+      font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px;
+      line-height: 1.5; tab-size: 2;
+    }
+    .drawer-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.6; margin-top: 10px; }
+    .hint code { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 4px;
+      color: #ffd27a; font-size: 11.5px; }
+    #jsonError { color: var(--accent); font-size: 12px; margin-top: 8px; min-height: 16px; white-space: pre-wrap; }
+
+    .schema-block { font-size: 12.5px; line-height: 1.7; }
+    .schema-block h3 { font-size: 13px; margin: 14px 0 6px; color: var(--fg); }
+    .schema-block .row { display: flex; gap: 8px; margin: 3px 0; }
+    .schema-block .k { color: #ffd27a; font-family: Menlo, monospace; min-width: 128px; }
+    .schema-block .d { color: var(--muted); }
+    .kbd-list { columns: 2; font-size: 12px; color: var(--muted); line-height: 1.9; }
+    .kbd-list b { color: var(--fg); font-family: Menlo, monospace; }
+
+    /* Tema claro */
+    #app.tema-blanco { }
+    .toast {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+      padding: 10px 16px; border-radius: 10px; z-index: 70; font-size: 13px;
+      opacity: 0; transition: opacity .25s; pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+
+    @media (max-width: 720px) {
+      label.field .lbl-txt { display: none; }
+      input[type=range] { width: 80px; }
+      #script { padding-top: 55vh; padding-bottom: 80vh; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="tema-negro readline">
+
+    <!-- ====== Barra de control ====== -->
+    <div id="topbar">
+      <div class="group">
+        <button id="btnPlay" class="primary icon" title="Reproducir / Pausar (Espacio)">▶︎ <span id="playLbl">Play</span></button>
+        <button id="btnRestart" class="icon" title="Reiniciar (R)">↺ Reiniciar</button>
+      </div>
+      <div class="sep"></div>
+
+      <label class="field" title="Velocidad de scroll (↑ / ↓)">
+        <span class="lbl-txt">Velocidad</span>
+        <input id="speed" type="range" min="5" max="200" step="1" value="40" />
+        <span class="val" id="speedVal">40</span>
+      </label>
+
+      <label class="field" title="Tamaño de texto (+ / −)">
+        <span class="lbl-txt">Texto</span>
+        <input id="fs" type="range" min="24" max="120" step="1" value="46" />
+        <span class="val" id="fsVal">46</span>
+      </label>
+
+      <label class="field" title="Ancho de columna">
+        <span class="lbl-txt">Ancho</span>
+        <input id="width" type="range" min="40" max="100" step="1" value="88" />
+        <span class="val" id="widthVal">88</span>
+      </label>
+
+      <label class="field" title="Interlineado">
+        <span class="lbl-txt">Interlínea</span>
+        <input id="lh" type="range" min="11" max="26" step="1" value="15" />
+        <span class="val" id="lhVal">1.5</span>
+      </label>
+
+      <div class="spacer"></div>
+
+      <div class="group">
+        <button id="btnTheme" class="icon" title="Fondo negro / blanco (B)">◐ Fondo</button>
+        <button id="btnMirrorH" class="icon" title="Espejo horizontal (M)">⇄ Espejo</button>
+        <button id="btnReadline" class="icon on" title="Línea de lectura (L)">— Línea</button>
+        <button id="btnFocus" class="icon" title="Modo foco (viñeta)">◍ Foco</button>
+        <button id="btnFull" class="icon" title="Pantalla completa (F)">⛶ Full</button>
+        <button id="btnDrawer" class="icon" title="Guión / JSON (G)">☰ Guión</button>
+      </div>
+    </div>
+
+    <!-- ====== Escenario ====== -->
+    <div id="stage">
+      <div id="scroller">
+        <div id="script"><!-- render dinámico --></div>
+      </div>
+      <div id="vignette"></div>
+      <div id="readline"></div>
+      <div id="progress"></div>
+      <div id="countdown"></div>
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <!-- ====== Panel guión / JSON ====== -->
+    <div id="drawer">
+      <div class="drawer-head">
+        <h2>📝 Guión</h2>
+        <div class="spacer"></div>
+        <button id="btnCloseDrawer" class="icon">✕</button>
+      </div>
+      <div class="drawer-tabs">
+        <button data-tab="json" class="active">JSON</button>
+        <button data-tab="schema">Estructura</button>
+        <button data-tab="atajos">Atajos</button>
+      </div>
+      <div class="drawer-body">
+
+        <div class="pane active" data-pane="json">
+          <textarea id="jsonInput" spellcheck="false"></textarea>
+          <div id="jsonError"></div>
+          <div class="drawer-actions">
+            <button id="btnApply" class="primary">Cargar guión</button>
+            <button id="btnFormat">Formatear</button>
+            <button id="btnExample">Ejemplo</button>
+            <button id="btnCopySchema">Copiar plantilla</button>
+            <button id="btnDownload">Descargar .json</button>
+            <label class="btn" style="cursor:pointer">Abrir .json
+              <input id="fileInput" type="file" accept=".json,application/json" hidden />
+            </label>
+          </div>
+          <p class="hint">
+            Pegá acá el JSON de tu guión y tocá <b>Cargar guión</b>. Se guarda solo en tu navegador.
+            Pasale la plantilla a Claude para que adapte cualquier guión a este formato.
+          </p>
+        </div>
+
+        <div class="pane" data-pane="schema">
+          <div class="schema-block" id="schemaHtml"></div>
+        </div>
+
+        <div class="pane" data-pane="atajos">
+          <div class="kbd-list">
+            <div><b>Espacio</b> — Play / Pausa</div>
+            <div><b>↑ / ↓</b> — Velocidad</div>
+            <div><b>+ / −</b> — Tamaño texto</div>
+            <div><b>← / →</b> — Saltar bloque</div>
+            <div><b>R</b> — Reiniciar</div>
+            <div><b>B</b> — Fondo negro/blanco</div>
+            <div><b>M</b> — Espejo horizontal</div>
+            <div><b>L</b> — Línea de lectura</div>
+            <div><b>F</b> — Pantalla completa</div>
+            <div><b>G</b> — Panel de guión</div>
+            <div><b>Esc</b> — Salir / cerrar</div>
+            <div><b>Home</b> — Ir al inicio</div>
+          </div>
+          <p class="hint" style="margin-top:16px">
+            Durante la reproducción la barra superior se oculta sola para que la cámara
+            solo capture el texto. Movés el mouse o tocás la pantalla para que vuelva.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    "use strict";
+    const $ = s => document.querySelector(s);
+    const app = $("#app"), scroller = $("#scroller"), script = $("#script");
+
+    // ---------- Guión de ejemplo (formato para reels / entrevistas) ----------
+    const EJEMPLO = {
+      meta: {
+        titulo: "Reel · Entrevista de ejemplo",
+        autor: "Studio MRB",
+        duracionEstimada: "60s",
+        notas: "Guión de muestra: reemplazalo por el tuyo."
+      },
+      config: { velocidad: 40, tamanoTexto: 46, tema: "negro", espejo: false },
+      bloques: [
+        { tipo: "gancho", texto: "¿Y si te dijera que grabás un reel en una sola toma?" },
+        { tipo: "titulo", texto: "Bloque 1 · Presentación" },
+        { tipo: "direccion", texto: "Mirá a cámara, sonreí, pausa de 1 seg" },
+        { tipo: "entrevistador", nombre: "Ana", texto: "Contame, ¿cómo empezó todo?" },
+        { tipo: "entrevistado", nombre: "Martín", texto: "Empezó como un experimento en el living de casa..." },
+        { tipo: "broll", texto: "plano detalle de las manos escribiendo" },
+        { tipo: "titulo", texto: "Bloque 2 · El giro" },
+        { tipo: "entrevistador", nombre: "Ana", texto: "¿Y cuál fue el momento que lo cambió todo?" },
+        { tipo: "entrevistado", nombre: "Martín", texto: "El día que un video llegó a un millón de personas sin pauta." },
+        { tipo: "direccion", texto: "bajá el ritmo, tono íntimo" },
+        { tipo: "pausa", texto: "" },
+        { tipo: "cta", texto: "Seguime para la segunda parte 👇" }
+      ]
+    };
+
+    // ---------- Estado ----------
+    let playing = false, raf = null, lastTs = 0, remainder = 0;
+    let bloqueEls = [];
+
+    // ---------- Render del guión ----------
+    function esc(t){ return (t==null?"":String(t)).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+    function render(data){
+      script.innerHTML = "";
+      const bloques = (data && data.bloques) || [];
+      bloques.forEach(b => {
+        const tipo = (b.tipo || "narracion").toLowerCase();
+        const el = document.createElement("div");
+        el.className = "bloque b-" + tipo;
+        const nombre = b.nombre ? `<span class="locutor">${esc(b.nombre)}</span>` : "";
+        switch(tipo){
+          case "titulo":
+            el.innerHTML = esc(b.texto); break;
+          case "gancho":
+            el.innerHTML = `<span class="tag">GANCHO · </span>${esc(b.texto)}`; break;
+          case "entrevistador":
+          case "entrevistado":
+          case "narracion":
+            el.innerHTML = `${nombre}<span class="cuerpo">${esc(b.texto)}</span>`; break;
+          case "direccion":
+            el.innerHTML = esc(b.texto); break;
+          case "broll":
+            el.innerHTML = esc(b.texto); break;
+          case "cta":
+            el.innerHTML = esc(b.texto); break;
+          case "pausa":
+            el.innerHTML = b.texto ? esc(b.texto) : "• • •"; break;
+          default:
+            el.innerHTML = `${nombre}<span class="cuerpo">${esc(b.texto)}</span>`;
+        }
+        script.appendChild(el);
+      });
+      bloqueEls = [...script.querySelectorAll(".bloque")];
+      // aplicar config del guión si existe
+      if (data && data.config) applyConfig(data.config);
+      resetScroll();
+    }
+
+    function applyConfig(c){
+      if (c.velocidad) { $("#speed").value = c.velocidad; syncSpeed(); }
+      if (c.tamanoTexto) { $("#fs").value = c.tamanoTexto; syncFs(); }
+      if (c.tema === "blanco") setTheme("blanco"); else if (c.tema === "negro") setTheme("negro");
+      if (typeof c.espejo === "boolean") { app.classList.toggle("mirror-h", c.espejo); $("#btnMirrorH").classList.toggle("on", c.espejo); }
+    }
+
+    // ---------- Auto-scroll ----------
+    function tick(ts){
+      if (!playing) return;
+      if (!lastTs) lastTs = ts;
+      const dt = (ts - lastTs) / 1000; lastTs = ts;
+      const pxPerSec = parseFloat($("#speed").value); // velocidad = px/seg aprox
+      remainder += pxPerSec * dt;
+      const step = Math.floor(remainder);
+      if (step >= 1){ scroller.scrollTop += step; remainder -= step; }
+      updateProgress();
+      if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2){
+        pause(); toast("Fin del guión");
+      } else {
+        raf = requestAnimationFrame(tick);
+      }
+    }
+
+    function play(withCountdown){
+      if (playing) return;
+      const start = () => {
+        playing = true; lastTs = 0; app.classList.add("playing");
+        $("#playLbl").textContent = "Pausa"; $("#btnPlay").firstChild.textContent = "⏸ ";
+        raf = requestAnimationFrame(tick);
+      };
+      if (withCountdown) countdown(3, start); else start();
+    }
+    function pause(){
+      playing = false; if (raf) cancelAnimationFrame(raf);
+      app.classList.remove("playing");
+      $("#playLbl").textContent = "Play"; $("#btnPlay").firstChild.textContent = "▶︎ ";
+    }
+    function toggle(){ playing ? pause() : play(true); }
+    function resetScroll(){ scroller.scrollTop = 0; remainder = 0; updateProgress(); }
+    function restart(){ pause(); resetScroll(); toast("Reiniciado"); }
+
+    function updateProgress(){
+      const max = scroller.scrollHeight - scroller.clientHeight;
+      const pct = max > 0 ? (scroller.scrollTop / max) * 100 : 0;
+      $("#progress").style.width = pct + "%";
+    }
+
+    // ---------- Cuenta regresiva ----------
+    function countdown(n, done){
+      const el = $("#countdown"); el.classList.add("show"); el.textContent = n;
+      let i = n;
+      const iv = setInterval(() => {
+        i--;
+        if (i <= 0){ clearInterval(iv); el.classList.remove("show"); done(); }
+        else el.textContent = i;
+      }, 800);
+    }
+
+    // ---------- Saltar entre bloques ----------
+    function jump(dir){
+      const center = scroller.scrollTop + scroller.clientHeight * 0.4;
+      let target = null;
+      if (dir > 0){
+        for (const el of bloqueEls){ if (el.offsetTop > center + 4){ target = el; break; } }
+      } else {
+        for (let k = bloqueEls.length-1; k>=0; k--){ if (bloqueEls[k].offsetTop < center - 4){ target = bloqueEls[k]; break; } }
+      }
+      if (target){
+        scroller.scrollTop = target.offsetTop - scroller.clientHeight * 0.4;
+        updateProgress();
+      }
+    }
+
+    // ---------- Controles de UI ----------
+    function syncSpeed(){ $("#speedVal").textContent = $("#speed").value; }
+    function syncFs(){ const v = $("#fs").value; document.documentElement.style.setProperty("--fs", v+"px"); $("#fsVal").textContent = v; }
+    function syncWidth(){ const v = $("#width").value; document.documentElement.style.setProperty("--width", v+"%"); $("#widthVal").textContent = v; }
+    function syncLh(){ const v = $("#lh").value/10; document.documentElement.style.setProperty("--lh", v); $("#lhVal").textContent = v.toFixed(1); }
+
+    function setTheme(t){
+      if (t === "blanco"){
+        document.documentElement.style.setProperty("--bg", "#f7f7f4");
+        document.documentElement.style.setProperty("--fg", "#161616");
+        document.documentElement.style.setProperty("--muted", "#8a8a8a");
+        app.classList.add("tema-blanco"); app.classList.remove("tema-negro");
+      } else {
+        document.documentElement.style.setProperty("--bg", "#000");
+        document.documentElement.style.setProperty("--fg", "#f2f2f2");
+        document.documentElement.style.setProperty("--muted", "#7a7a7a");
+        app.classList.add("tema-negro"); app.classList.remove("tema-blanco");
+      }
+    }
+    function toggleTheme(){ setTheme(app.classList.contains("tema-negro") ? "blanco" : "negro"); }
+
+    // ---------- Toast ----------
+    let toastT;
+    function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+      clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1400); }
+
+    // ---------- Pantalla completa ----------
+    function toggleFull(){
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    }
+
+    // ---------- Drawer / JSON ----------
+    const drawer = $("#drawer");
+    function openDrawer(){ drawer.classList.add("open"); }
+    function closeDrawer(){ drawer.classList.remove("open"); }
+
+    function loadJSON(showToast){
+      const raw = $("#jsonInput").value.trim();
+      $("#jsonError").textContent = "";
+      if (!raw){ $("#jsonError").textContent = "Pegá un JSON primero."; return; }
+      let data;
+      try { data = JSON.parse(raw); }
+      catch(e){ $("#jsonError").textContent = "JSON inválido: " + e.message; return; }
+      if (!data.bloques || !Array.isArray(data.bloques)){
+        $("#jsonError").textContent = 'Falta el arreglo "bloques".'; return;
+      }
+      render(data);
+      localStorage.setItem("teleprompter_guion", raw);
+      if (showToast){ toast("Guión cargado ✓"); closeDrawer(); }
+    }
+
+    // ---------- Persistencia ----------
+    function loadInitial(){
+      const saved = localStorage.getItem("teleprompter_guion");
+      const data = saved ? safeParse(saved) : null;
+      const use = data || EJEMPLO;
+      $("#jsonInput").value = JSON.stringify(use, null, 2);
+      render(use);
+    }
+    function safeParse(s){ try{ return JSON.parse(s); }catch{ return null; } }
+
+    // ---------- Esquema (doc para Claude) ----------
+    const SCHEMA_HTML = `
+      <p class="d">Estructura JSON que entiende el teleprompter. Copiala y pedile a Claude:
+      <em>"adaptá este guión a esta estructura JSON"</em>.</p>
+      <h3>Raíz</h3>
+      <div class="row"><span class="k">meta</span><span class="d">datos del guión (opcional)</span></div>
+      <div class="row"><span class="k">config</span><span class="d">ajustes iniciales (opcional)</span></div>
+      <div class="row"><span class="k">bloques[]</span><span class="d">lista ordenada de bloques (obligatorio)</span></div>
+      <h3>meta</h3>
+      <div class="row"><span class="k">titulo</span><span class="d">nombre del guión</span></div>
+      <div class="row"><span class="k">autor</span><span class="d">quién lo escribió</span></div>
+      <div class="row"><span class="k">duracionEstimada</span><span class="d">ej. "60s"</span></div>
+      <div class="row"><span class="k">notas</span><span class="d">texto libre</span></div>
+      <h3>config</h3>
+      <div class="row"><span class="k">velocidad</span><span class="d">px/seg (5–200)</span></div>
+      <div class="row"><span class="k">tamanoTexto</span><span class="d">px (24–120)</span></div>
+      <div class="row"><span class="k">tema</span><span class="d">"negro" | "blanco"</span></div>
+      <div class="row"><span class="k">espejo</span><span class="d">true | false (teleprompter físico)</span></div>
+      <h3>bloques[].tipo</h3>
+      <div class="row"><span class="k">gancho</span><span class="d">frase de apertura (primeros 3 seg)</span></div>
+      <div class="row"><span class="k">titulo</span><span class="d">separador / nombre de sección</span></div>
+      <div class="row"><span class="k">entrevistador</span><span class="d">pregunta · usa "nombre"</span></div>
+      <div class="row"><span class="k">entrevistado</span><span class="d">respuesta · usa "nombre"</span></div>
+      <div class="row"><span class="k">narracion</span><span class="d">texto a cámara / voz en off</span></div>
+      <div class="row"><span class="k">direccion</span><span class="d">indicación (no se lee): "mirá a cámara"</span></div>
+      <div class="row"><span class="k">broll</span><span class="d">nota de plano de apoyo</span></div>
+      <div class="row"><span class="k">cta</span><span class="d">llamada a la acción</span></div>
+      <div class="row"><span class="k">pausa</span><span class="d">silencio / respiro</span></div>
+      <h3>Campos de bloque</h3>
+      <div class="row"><span class="k">texto</span><span class="d">contenido del bloque</span></div>
+      <div class="row"><span class="k">nombre</span><span class="d">quién habla (entrevistador/entrevistado)</span></div>
+    `;
+    $("#schemaHtml").innerHTML = SCHEMA_HTML;
+
+    // ---------- Eventos ----------
+    $("#btnPlay").onclick = toggle;
+    $("#btnRestart").onclick = restart;
+    $("#speed").oninput = syncSpeed;
+    $("#fs").oninput = syncFs;
+    $("#width").oninput = syncWidth;
+    $("#lh").oninput = syncLh;
+    $("#btnTheme").onclick = toggleTheme;
+    $("#btnMirrorH").onclick = () => { app.classList.toggle("mirror-h"); $("#btnMirrorH").classList.toggle("on"); };
+    $("#btnReadline").onclick = () => { app.classList.toggle("readline"); $("#btnReadline").classList.toggle("on"); };
+    $("#btnFocus").onclick = () => { app.classList.toggle("focus"); $("#btnFocus").classList.toggle("on"); };
+    $("#btnFull").onclick = toggleFull;
+    $("#btnDrawer").onclick = () => drawer.classList.contains("open") ? closeDrawer() : openDrawer();
+    $("#btnCloseDrawer").onclick = closeDrawer;
+    $("#btnApply").onclick = () => loadJSON(true);
+    $("#btnExample").onclick = () => { $("#jsonInput").value = JSON.stringify(EJEMPLO, null, 2); loadJSON(false); toast("Ejemplo cargado"); };
+    $("#btnFormat").onclick = () => { const d=safeParse($("#jsonInput").value); if(d){ $("#jsonInput").value = JSON.stringify(d,null,2); $("#jsonError").textContent=""; } else $("#jsonError").textContent="No se puede formatear: JSON inválido."; };
+    $("#btnCopySchema").onclick = () => {
+      const plantilla = { meta:{titulo:"",autor:"",duracionEstimada:"",notas:""},
+        config:{velocidad:40,tamanoTexto:46,tema:"negro",espejo:false},
+        bloques:[{tipo:"gancho",texto:""},{tipo:"titulo",texto:""},
+          {tipo:"entrevistador",nombre:"",texto:""},{tipo:"entrevistado",nombre:"",texto:""},
+          {tipo:"direccion",texto:""},{tipo:"broll",texto:""},{tipo:"cta",texto:""}] };
+      navigator.clipboard?.writeText(JSON.stringify(plantilla,null,2));
+      toast("Plantilla copiada ✓");
+    };
+    $("#btnDownload").onclick = () => {
+      const blob = new Blob([$("#jsonInput").value], {type:"application/json"});
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+      a.download = "guion.json"; a.click(); URL.revokeObjectURL(a.href);
+    };
+    $("#fileInput").onchange = (e) => {
+      const f = e.target.files[0]; if(!f) return;
+      const r = new FileReader(); r.onload = () => { $("#jsonInput").value = r.result; loadJSON(true); }; r.readAsText(f);
+    };
+
+    // Tabs del drawer
+    document.querySelectorAll(".drawer-tabs button").forEach(b => b.onclick = () => {
+      document.querySelectorAll(".drawer-tabs button").forEach(x=>x.classList.remove("active"));
+      document.querySelectorAll(".drawer-body .pane").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      $(`.pane[data-pane="${b.dataset.tab}"]`).classList.add("active");
+    });
+
+    // Auto-ocultar barra en reproducción
+    let hideT;
+    function showBars(){ app.classList.remove("immersive"); clearTimeout(hideT);
+      if (playing) hideT = setTimeout(()=>app.classList.add("immersive"), 2500); }
+    ["mousemove","touchstart","keydown"].forEach(ev => window.addEventListener(ev, showBars, {passive:true}));
+
+    // Tap en el escenario = play/pausa
+    $("#stage").addEventListener("click", (e) => {
+      if (drawer.classList.contains("open")) return;
+      if (e.target.closest("#topbar")) return;
+      toggle();
+    });
+
+    // Teclado
+    window.addEventListener("keydown", (e) => {
+      const typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+      if (typing && e.key !== "Escape") return;
+      switch(e.key){
+        case " ": e.preventDefault(); toggle(); break;
+        case "ArrowUp": e.preventDefault(); $("#speed").value = Math.min(200, +$("#speed").value + 3); syncSpeed(); break;
+        case "ArrowDown": e.preventDefault(); $("#speed").value = Math.max(5, +$("#speed").value - 3); syncSpeed(); break;
+        case "ArrowRight": e.preventDefault(); jump(1); break;
+        case "ArrowLeft": e.preventDefault(); jump(-1); break;
+        case "+": case "=": $("#fs").value = Math.min(120, +$("#fs").value + 2); syncFs(); break;
+        case "-": case "_": $("#fs").value = Math.max(24, +$("#fs").value - 2); syncFs(); break;
+        case "r": case "R": restart(); break;
+        case "b": case "B": toggleTheme(); break;
+        case "m": case "M": app.classList.toggle("mirror-h"); $("#btnMirrorH").classList.toggle("on"); break;
+        case "l": case "L": app.classList.toggle("readline"); $("#btnReadline").classList.toggle("on"); break;
+        case "f": case "F": toggleFull(); break;
+        case "g": case "G": drawer.classList.contains("open") ? closeDrawer() : openDrawer(); break;
+        case "Home": resetScroll(); break;
+        case "Escape": if (drawer.classList.contains("open")) closeDrawer(); break;
+      }
+    });
+
+    // ---------- Init ----------
+    syncSpeed(); syncFs(); syncWidth(); syncLh();
+    loadInitial();
+  })();
+  </script>
+</body>
+</html>
