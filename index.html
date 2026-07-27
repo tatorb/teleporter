@@ -207,6 +207,7 @@
     .actions button,.actions .btn { color:var(--fg); background:transparent; border:1px solid var(--hairline);
       font-weight:500; letter-spacing:0; text-transform:none; }
     .actions button.primary { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+    .actions .strong { border-color:var(--fg); font-weight:600; }
     .hint { color:var(--muted); font-size:12.5px; line-height:1.65; margin-top:12px; }
     .hint code { background:var(--gray-50); padding:1px 6px; border-radius:5px; font-size:11.5px; }
     #app.oscuro .hint code { background:rgba(255,255,255,.1); }
@@ -296,14 +297,19 @@
           <div id="jsonError"></div>
           <div class="actions">
             <button id="btnApply" class="primary">Cargar guión</button>
+            <label class="btn strong">📂 Abrir .json<input id="fileInput" type="file" accept=".json,application/json" hidden></label>
+            <button id="btnDownload" class="strong">💾 Guardar .json</button>
+          </div>
+          <div class="actions">
             <button id="btnFormat">Formatear</button>
             <button id="btnExample">Ejemplo</button>
             <button id="btnCopyTemplate">Copiar plantilla</button>
-            <button id="btnDownload">Descargar</button>
-            <label class="btn">Abrir .json<input id="fileInput" type="file" accept=".json,application/json" hidden></label>
           </div>
-          <p class="hint">Pegá el JSON de tu semana y tocá <b>Cargar guión</b>. Acepta comentarios <code>//</code>
-            y comas finales, así podés pegar directo lo que te dé Claude. Se guarda en tu navegador.</p>
+          <p class="hint"><b>Flujo compu → tablet:</b> en la compu editás y tocás <b>💾 Guardar .json</b>
+            (se descarga con el nombre de la marca y semana). Pasás ese archivo a la tablet
+            (Drive, iCloud, AirDrop…) y ahí abrís esta misma página y tocás <b>📂 Abrir .json</b>.
+            El último guión también queda guardado en el navegador de cada dispositivo.<br>
+            Acepta comentarios <code>//</code> y comas finales, así pegás directo lo que te dé Claude.</p>
         </div>
         <div class="pane" data-pane="schema"><div class="schema" id="schemaHtml"></div></div>
         <div class="pane" data-pane="keys">
@@ -650,10 +656,26 @@
           ] }] };
       navigator.clipboard?.writeText(JSON.stringify(plantilla,null,2)); toast("Plantilla copiada");
     };
-    $("#btnDownload").onclick=()=>{ const b=new Blob([$("#jsonInput").value],{type:"application/json"});
-      const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="guiones.json"; a.click(); URL.revokeObjectURL(a.href); };
+    function slugify(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,50); }
+    function fileNameFor(raw){
+      const d=safeParse(raw)||{}; const m=d.meta||{};
+      const marca=slugify(m.marca)||"guiones";
+      const semana=(m.semana!=null&&m.semana!=="")?"-semana-"+slugify(m.semana):"";
+      return marca+semana+".json";
+    }
+    $("#btnDownload").onclick=()=>{
+      const raw=$("#jsonInput").value.trim();
+      if(!raw){ toast("Nada para guardar"); return; }
+      const parsed=safeParse(raw);
+      // guarda tal cual lo editaste (conserva comentarios); avisa si no parsea
+      const b=new Blob([raw],{type:"application/json"});
+      const a=document.createElement("a"); a.href=URL.createObjectURL(b);
+      a.download=fileNameFor(raw); a.click(); URL.revokeObjectURL(a.href);
+      toast(parsed?("Guardado: "+a.download):"Guardado (¡ojo: el JSON tiene un error!)");
+    };
     $("#fileInput").onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
-      r.onload=()=>{ $("#jsonInput").value=r.result; loadJSON(true); }; r.readAsText(f); };
+      r.onload=()=>{ $("#jsonInput").value=r.result; loadJSON(true); toast("Abierto: "+f.name); e.target.value=""; }; r.readAsText(f); };
 
     document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
       document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));

@@ -18,6 +18,25 @@ jerarquía construida con peso, escala, mayúsculas y tracking en vez de color.
 
 El guión y los ajustes se guardan solos en el navegador (localStorage).
 
+## Guardar y abrir archivos (flujo compu → tablet)
+
+En el panel **Guión** tenés dos botones:
+
+- **💾 Guardar .json** — descarga el guión como archivo, con el nombre armado
+  automáticamente desde la marca y la semana (ej. `financers-semana-1.json`).
+  Guarda exactamente lo que editaste (incluidos los comentarios `//`).
+- **📂 Abrir .json** — abre un archivo `.json` desde el dispositivo.
+
+Flujo típico:
+
+1. En la **computadora**, cargás/editás el guión y tocás **💾 Guardar .json**.
+2. Pasás ese archivo a la **tablet** (Google Drive, iCloud, AirDrop, etc.).
+3. En la tablet abrís esta misma página (`index.html`) y tocás **📂 Abrir .json**.
+
+En iPad, *Abrir .json* usa la app **Archivos**, así que podés levantar el guión
+directo desde Drive o iCloud. El último guión abierto queda guardado en el
+navegador de cada dispositivo.
+
 ## Funciones
 
 - **Velocidad** de scroll y **tamaño** de texto ajustables en vivo.
