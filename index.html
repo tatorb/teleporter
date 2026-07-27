@@ -208,6 +208,30 @@
       font-weight:500; letter-spacing:0; text-transform:none; }
     .actions button.primary { background:var(--fg); color:var(--bg); border-color:var(--fg); }
     .actions .strong { border-color:var(--fg); font-weight:600; }
+
+    /* Guión online (URL) */
+    .urlbox { border:1px solid var(--hairline); border-radius:var(--radius-lg); padding:16px; margin-bottom:16px; }
+    .urlbox-title { font-size:11px; font-weight:600; letter-spacing:var(--tracking-label);
+      text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
+    .urlrow { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+    .urlrow input { flex:1 1 240px; min-width:0; background:var(--gray-25); color:var(--fg);
+      border:1px solid var(--hairline); border-radius:var(--radius-pill); padding:9px 14px;
+      font-family:ui-monospace,Menlo,monospace; font-size:12px; }
+    #app.oscuro .urlrow input { background:#0d1114; }
+    .urlrow button { color:var(--fg); background:transparent; border:1px solid var(--hairline); font-weight:500; }
+    .urlrow button.primary { background:var(--fg); color:var(--bg); border-color:var(--fg); font-weight:600; }
+    .chk2 { display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--muted); cursor:pointer; }
+    .chk2 input { width:16px; height:16px; accent-color:var(--fg); cursor:pointer; }
+    .urlstatus { font-size:12px; margin-top:10px; min-height:16px; color:var(--muted); }
+    .urlstatus.ok { color:#1a7f37; } .urlstatus.err { color:#b3261e; }
+    #app.oscuro .urlstatus.ok { color:#57d977; } #app.oscuro .urlstatus.err { color:#ff8a80; }
+    details.manual { border:1px solid var(--hairline); border-radius:var(--radius-lg); padding:0 16px; }
+    details.manual > summary { cursor:pointer; padding:14px 0; font-size:12.5px; font-weight:600;
+      color:var(--fg); list-style:none; }
+    details.manual > summary::-webkit-details-marker { display:none; }
+    details.manual[open] > summary { border-bottom:1px solid var(--rule); margin-bottom:14px; }
+    details.manual textarea { margin-top:0; }
+
     .hint { color:var(--muted); font-size:12.5px; line-height:1.65; margin-top:12px; }
     .hint code { background:var(--gray-50); padding:1px 6px; border-radius:5px; font-size:11.5px; }
     #app.oscuro .hint code { background:rgba(255,255,255,.1); }
@@ -293,23 +317,38 @@
       </div>
       <div class="db">
         <div class="pane active" data-pane="json">
-          <textarea id="jsonInput" spellcheck="false"></textarea>
-          <div id="jsonError"></div>
-          <div class="actions">
-            <button id="btnApply" class="primary">Cargar guión</button>
-            <label class="btn strong">📂 Abrir .json<input id="fileInput" type="file" accept=".json,application/json" hidden></label>
-            <button id="btnDownload" class="strong">💾 Guardar .json</button>
+
+          <div class="urlbox">
+            <div class="urlbox-title">🌐 Guión online (URL)</div>
+            <div class="urlrow">
+              <input id="urlInput" type="url" spellcheck="false" placeholder="https://raw.githubusercontent.com/tatorb/teleporter/main/guiones/actual.json">
+              <button id="btnLoadUrl" class="primary">Cargar</button>
+              <button id="btnRefresh" title="Actualizar (traer la última versión)">🔄</button>
+            </div>
+            <label class="chk2"><input type="checkbox" id="chkAuto" checked> Auto-cargar esta URL cada vez que abro la página</label>
+            <div id="urlStatus" class="urlstatus"></div>
+            <p class="hint" style="margin-top:8px">Pegás la URL una sola vez. Editás el guión en internet (GitHub, Gist,
+              Dropbox…) y la tablet trae la última versión sola. Podés dejar un acceso directo con
+              <code>index.html?src=TU_URL</code> para abrirlo con un toque.</p>
           </div>
-          <div class="actions">
-            <button id="btnFormat">Formatear</button>
-            <button id="btnExample">Ejemplo</button>
-            <button id="btnCopyTemplate">Copiar plantilla</button>
-          </div>
-          <p class="hint"><b>Flujo compu → tablet:</b> en la compu editás y tocás <b>💾 Guardar .json</b>
-            (se descarga con el nombre de la marca y semana). Pasás ese archivo a la tablet
-            (Drive, iCloud, AirDrop…) y ahí abrís esta misma página y tocás <b>📂 Abrir .json</b>.
-            El último guión también queda guardado en el navegador de cada dispositivo.<br>
-            Acepta comentarios <code>//</code> y comas finales, así pegás directo lo que te dé Claude.</p>
+
+          <details class="manual">
+            <summary>✍️ Editar / pegar JSON a mano</summary>
+            <textarea id="jsonInput" spellcheck="false"></textarea>
+            <div id="jsonError"></div>
+            <div class="actions">
+              <button id="btnApply" class="primary">Cargar guión</button>
+              <label class="btn strong">📂 Abrir .json<input id="fileInput" type="file" accept=".json,application/json" hidden></label>
+              <button id="btnDownload" class="strong">💾 Guardar .json</button>
+            </div>
+            <div class="actions">
+              <button id="btnFormat">Formatear</button>
+              <button id="btnExample">Ejemplo</button>
+              <button id="btnCopyTemplate">Copiar plantilla</button>
+            </div>
+            <p class="hint">Alternativa sin internet: guardás el <code>.json</code> y lo abrís en la tablet.
+              Acepta comentarios <code>//</code> y comas finales, así pegás directo lo que te dé Claude.</p>
+          </details>
         </div>
         <div class="pane" data-pane="schema"><div class="schema" id="schemaHtml"></div></div>
         <div class="pane" data-pane="keys">
@@ -583,11 +622,70 @@
       if(showToast){ toast("Guión cargado"); closeScript(); }
     }
 
+    // ---------- Guión online (cargar desde una URL de internet) ----------
+    const LS_GUION="mrb_teleprompter", LS_URL="mrb_teleprompter_url", LS_AUTO="mrb_teleprompter_auto";
+
+    function setUrlStatus(msg,cls){ const el=$("#urlStatus"); if(!el) return;
+      el.textContent=msg||""; el.className="urlstatus"+(cls?" "+cls:""); }
+
+    // Convierte links "de compartir" comunes en links directos a JSON
+    function normalizeUrl(u){
+      u=(u||"").trim(); if(!u) return u;
+      let m=u.match(/^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/(.+)$/);
+      if(m) return `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}`;
+      if(/dropbox\.com/.test(u)) return u.replace("www.dropbox.com","dl.dropboxusercontent.com").replace(/([?&])dl=\d/,"$1raw=1");
+      m=u.match(/drive\.google\.com\/file\/d\/([^\/]+)/); if(m) return `https://drive.google.com/uc?export=download&id=${m[1]}`;
+      m=u.match(/drive\.google\.com\/open\?id=([^&]+)/); if(m) return `https://drive.google.com/uc?export=download&id=${m[1]}`;
+      return u;
+    }
+
+    async function loadFromUrl(rawUrl,opts){
+      opts=opts||{}; const url=normalizeUrl(rawUrl); if(!url) return false;
+      setUrlStatus("Cargando desde internet…");
+      try{
+        const res=await fetch(url,{cache:"no-store"});
+        if(!res.ok) throw new Error("HTTP "+res.status);
+        const txt=await res.text();
+        const data=looseParse(txt);               // lanza si el JSON está mal
+        if(!normalize(data).piezas.length) throw new Error('el JSON no tiene "piezas"');
+        $("#jsonInput").value=txt; render(data);
+        localStorage.setItem(LS_GUION,txt); localStorage.setItem(LS_URL,rawUrl);
+        const t=new Date().toLocaleTimeString().slice(0,5);
+        if(!opts.silent) setUrlStatus("Cargado desde internet ✓  ("+t+")","ok");
+        if(opts.close) closeScript();
+        return true;
+      }catch(e){
+        if(opts.silent) return false;   // intento por defecto: fallar sin ruido
+        const cors=/Failed to fetch|NetworkError|Load failed/i.test(e.message);
+        setUrlStatus((cors?"No se pudo acceder a la URL (bloqueo CORS o sin conexión). Uso la última copia. "
+          +"Tip: GitHub raw, Gist o npoint.io funcionan bien.":"Error: "+e.message+". Uso la última copia."),"err");
+        return false;
+      }
+    }
+
     function loadInitial(){
-      const saved=localStorage.getItem("mrb_teleprompter");
-      const data=saved?safeParse(saved):null; const use=data||EJEMPLO;
-      $("#jsonInput").value = saved || JSON.stringify(EJEMPLO,null,2);
-      render(use);
+      // fuente por URL: ?src= / #src= en el enlace, o la última URL guardada
+      const qp=new URLSearchParams(location.search);
+      const hp=new URLSearchParams((location.hash||"").replace(/^#/,""));
+      const src=qp.get("src")||qp.get("guion")||hp.get("src");
+      const savedUrl=localStorage.getItem(LS_URL)||"";
+      const autoRaw=localStorage.getItem(LS_AUTO); const autoOn = autoRaw===null?true:autoRaw==="1";
+      $("#chkAuto").checked=autoOn;
+      $("#urlInput").value = src || savedUrl;
+
+      // muestro ya la última copia (o el ejemplo) para que nunca quede vacío / offline OK
+      const cached=localStorage.getItem(LS_GUION);
+      const primed=cached?safeParse(cached):null;
+      $("#jsonInput").value = cached || JSON.stringify(EJEMPLO,null,2);
+      render(primed||EJEMPLO);
+
+      // luego, si hay URL, traigo la última versión de internet
+      if(src){ localStorage.setItem(LS_URL,src); loadFromUrl(src); }
+      else if(savedUrl && autoOn){ loadFromUrl(savedUrl); }
+      else if(!cached && /^https?:$/.test(location.protocol)){
+        // primer arranque hospedado: probar el guión del mismo sitio (sin CORS)
+        loadFromUrl("guiones/actual.json",{silent:true});
+      }
     }
 
     // ---------- Esquema (doc para Claude) ----------
@@ -637,6 +735,12 @@
     $("#btnReadline").onclick=()=>{ app.classList.toggle("readline"); $("#btnReadline").classList.toggle("on"); };
     $("#btnFont").onclick=()=>{ serif=!serif; setFont(); $("#btnFont").classList.toggle("on",serif); toast(serif?"Serif":"Urbanist"); };
     $("#btnFull").onclick=toggleFull;
+    $("#btnLoadUrl").onclick=()=>{ const u=$("#urlInput").value.trim();
+      if(!u){ setUrlStatus("Pegá una URL primero.","err"); return; } loadFromUrl(u,{close:true}); };
+    $("#btnRefresh").onclick=()=>{ const u=$("#urlInput").value.trim()||localStorage.getItem(LS_URL);
+      if(u) loadFromUrl(u); else setUrlStatus("No hay URL configurada.","err"); };
+    $("#urlInput").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#btnLoadUrl").click(); } });
+    $("#chkAuto").onchange=e=>localStorage.setItem(LS_AUTO, e.target.checked?"1":"0");
     $("#btnApply").onclick=()=>loadJSON(true);
     $("#btnExample").onclick=()=>{ $("#jsonInput").value=JSON.stringify(EJEMPLO,null,2); loadJSON(false); toast("Ejemplo cargado"); };
     $("#btnFormat").onclick=()=>{ const d=safeParse($("#jsonInput").value); if(d){ $("#jsonInput").value=JSON.stringify(d,null,2); $("#jsonError").textContent=""; } else $("#jsonError").textContent="No se puede formatear: JSON inválido."; };

@@ -18,7 +18,49 @@ jerarquía construida con peso, escala, mayúsculas y tracking en vez de color.
 
 El guión y los ajustes se guardan solos en el navegador (localStorage).
 
-## Guardar y abrir archivos (flujo compu → tablet)
+## Cargar el guión desde internet (recomendado)
+
+Para no depender de guardar y abrir archivos a mano: en el panel **Guión** hay
+una sección **🌐 Guión online (URL)**. Pegás **una sola vez** la URL de un JSON
+publicado en internet y la app lo trae sola cada vez que abrís la página.
+
+1. Publicás el guión en algún lugar que devuelva el JSON por URL (ver opciones abajo).
+2. En la app pegás esa URL en **🌐 Guión online (URL)** → **Cargar**.
+3. Dejás tildado *"Auto-cargar esta URL cada vez que abro la página"*.
+
+A partir de ahí: editás el guión en internet desde la compu y **la tablet trae
+la última versión sola** al abrir. Si estás sin conexión, usa la última copia
+que quedó guardada. El botón **🔄** fuerza traer la versión más nueva.
+
+**Acceso directo (bookmark):** podés abrir la app con la URL ya incluida usando
+`index.html?src=TU_URL`. Guardás ese enlace en la pantalla de inicio de la
+tablet y con un toque abre el teleprompter con el guión cargado.
+
+### Dónde publicar el JSON
+
+El navegador exige que el hosting permita **CORS**. Funcionan bien:
+
+| Opción | Cómo se edita | URL a pegar |
+|--------|---------------|-------------|
+| **GitHub** (este repo) | Editás `guiones/actual.json` en github.com o me lo pedís a mí | `https://raw.githubusercontent.com/tatorb/teleporter/main/guiones/actual.json` |
+| **Gist** | gist.github.com, editás en el navegador | el botón **Raw** del Gist |
+| **npoint.io** | editor JSON online, gratis | la URL de API que te da |
+| **Dropbox** | subís el archivo | el link de compartir (la app lo convierte a directo) |
+
+> Google Drive **no** sirve para esto: bloquea el acceso directo (CORS) desde el navegador.
+
+La app entiende links "de compartir" de GitHub y Dropbox y los convierte al link
+directo sola.
+
+### Que también la app viva en internet (GitHub Pages)
+
+Si querés abrir **la app misma** desde una URL (sin archivo local), activá GitHub
+Pages en el repo: *Settings → Pages → Deploy from a branch → `main` / root*.
+Queda publicada en `https://tatorb.github.io/teleporter/` y, como el guión está
+en el mismo sitio (`guiones/actual.json`), **la carga sola sin configurar nada**.
+Editás `guiones/actual.json` en github.com y listo.
+
+## Guardar y abrir archivos (alternativa sin internet)
 
 En el panel **Guión** tenés dos botones:
 
