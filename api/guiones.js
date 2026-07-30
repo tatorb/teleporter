@@ -15,10 +15,22 @@ import { randomUUID } from "crypto";
 
 const TOKEN = process.env.TELEPROMPTER_TOKEN || "";
 
+// Encuentra la connection string de Neon sin importar el prefijo que ponga la
+// integración (DATABASE_URL, POSTGRES_URL, STORAGE_URL, etc.).
+function connString() {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  const known = ["POSTGRES_URL", "DATABASE_URL_UNPOOLED", "POSTGRES_URL_NON_POOLING", "POSTGRES_PRISMA_URL"];
+  for (const k of known) if (process.env[k]) return process.env[k];
+  for (const v of Object.values(process.env))
+    if (typeof v === "string" && /^postgres(ql)?:\/\//.test(v)) return v; // último recurso: cualquier URL de Postgres
+  return "";
+}
+
 let _ready = null;
 function db() {
-  if (!process.env.DATABASE_URL) throw new Error("Falta la variable DATABASE_URL (Neon).");
-  return neon(process.env.DATABASE_URL);
+  const cs = connString();
+  if (!cs) throw new Error("No encontré la connection string de Neon. Conectá la base en Vercel (variable DATABASE_URL).");
+  return neon(cs);
 }
 async function ensureTable(sql) {
   if (!_ready) {
