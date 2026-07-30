@@ -80,6 +80,14 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (!authorized(req)) return res.status(401).json({ error: "No autorizado" });
 
+  // Diagnóstico: /api/guiones?debug=vars — muestra SOLO los nombres de variables
+  // relacionadas a la base (nunca los valores) para saber si Neon quedó conectada.
+  if (req.query && req.query.debug === "vars") {
+    const keys = Object.keys(process.env)
+      .filter(k => /url|postgres|database|neon|pg/i.test(k)).sort();
+    return res.status(200).json({ detectada: !!connString(), variables_de_base: keys });
+  }
+
   try {
     const sql = db();
     await ensureTable(sql);
