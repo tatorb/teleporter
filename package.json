@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Teleprompter para reels y entrevistas, con biblioteca de guiones en Neon/Vercel.",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.5"
   }
