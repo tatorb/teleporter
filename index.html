@@ -209,8 +209,8 @@
     .actions button.primary { background:var(--fg); color:var(--bg); border-color:var(--fg); }
     .actions .strong { border-color:var(--fg); font-weight:600; }
 
-    /* Guión online (URL) */
-    .urlbox { border:1px solid var(--hairline); border-radius:var(--radius-lg); padding:16px; margin-bottom:16px; }
+    /* Biblioteca / URL */
+    .urlbox, .libbox { border:1px solid var(--hairline); border-radius:var(--radius-lg); padding:16px; margin-bottom:16px; }
     .urlbox-title { font-size:11px; font-weight:600; letter-spacing:var(--tracking-label);
       text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
     .urlrow { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
@@ -231,6 +231,24 @@
     details.manual > summary::-webkit-details-marker { display:none; }
     details.manual[open] > summary { border-bottom:1px solid var(--rule); margin-bottom:14px; }
     details.manual textarea { margin-top:0; }
+
+    /* Lista de la biblioteca */
+    .liblist { margin:12px 0 6px; max-height:44vh; overflow:auto; }
+    .libitem { display:flex; align-items:stretch; gap:6px; border-top:1px solid var(--rule); }
+    .libitem:last-child { border-bottom:1px solid var(--rule); }
+    .libload { flex:1; text-align:left; background:transparent; border:none; border-radius:0;
+      color:var(--fg); padding:12px 4px; display:flex; flex-direction:column; gap:3px; letter-spacing:0; text-transform:none; }
+    .libload:hover { background:var(--gray-25); }
+    #app.oscuro .libload:hover { background:rgba(255,255,255,.05); }
+    .li-name { font-weight:600; font-size:14px; }
+    .li-meta { font-size:11px; font-weight:600; letter-spacing:var(--tracking-label); text-transform:uppercase; color:var(--muted); }
+    .lidel { background:transparent; border:none; color:var(--faint); padding:0 8px; border-radius:0; }
+    .lidel:hover { color:#b3261e; background:transparent; }
+    .libempty { color:var(--muted); font-size:13px; padding:16px 4px; text-align:center; }
+    .savebar { align-items:center; }
+    .nameinput { flex:1 1 200px; min-width:0; background:var(--gray-25); color:var(--fg);
+      border:1px solid var(--hairline); border-radius:var(--radius-pill); padding:9px 14px; font-size:13px; }
+    #app.oscuro .nameinput { background:#0d1114; }
 
     .hint { color:var(--muted); font-size:12.5px; line-height:1.65; margin-top:12px; }
     .hint code { background:var(--gray-50); padding:1px 6px; border-radius:5px; font-size:11.5px; }
@@ -318,35 +336,39 @@
       <div class="db">
         <div class="pane active" data-pane="json">
 
-          <div class="urlbox">
-            <div class="urlbox-title">🌐 Guión online (URL)</div>
+          <div class="libbox">
+            <div class="urlbox-title">☁️ Biblioteca de guiones</div>
             <div class="urlrow">
-              <input id="urlInput" type="url" spellcheck="false" placeholder="https://raw.githubusercontent.com/tatorb/teleporter/main/guiones/actual.json">
-              <button id="btnLoadUrl" class="primary">Cargar</button>
-              <button id="btnRefresh" title="Actualizar (traer la última versión)">🔄</button>
+              <input id="libSearch" type="search" spellcheck="false" placeholder="Buscar por nombre, marca, semana o fecha…">
+              <button id="btnLibRefresh" title="Actualizar la lista">🔄</button>
             </div>
-            <label class="chk2"><input type="checkbox" id="chkAuto" checked> Auto-cargar esta URL cada vez que abro la página</label>
-            <div id="urlStatus" class="urlstatus"></div>
-            <p class="hint" style="margin-top:8px">Pegás la URL una sola vez. Editás el guión en internet (GitHub, Gist,
-              Dropbox…) y la tablet trae la última versión sola. Podés dejar un acceso directo con
-              <code>index.html?src=TU_URL</code> para abrirlo con un toque.</p>
+            <div id="libList" class="liblist"></div>
+            <div id="libStatus" class="urlstatus"></div>
+            <div class="actions savebar">
+              <input id="saveName" class="nameinput" placeholder="Nombre para guardar (ej: FINANCERS · Semana 2)">
+              <button id="btnSaveCloud" class="primary">☁️ Guardar en la nube</button>
+            </div>
           </div>
 
           <details class="manual">
-            <summary>✍️ Editar / pegar JSON a mano</summary>
+            <summary>✍️ Editar / pegar JSON · importar · descargar</summary>
             <textarea id="jsonInput" spellcheck="false"></textarea>
             <div id="jsonError"></div>
             <div class="actions">
-              <button id="btnApply" class="primary">Cargar guión</button>
-              <label class="btn strong">📂 Abrir .json<input id="fileInput" type="file" accept=".json,application/json" hidden></label>
-              <button id="btnDownload" class="strong">💾 Guardar .json</button>
+              <button id="btnApply" class="primary">Cargar al teleprompter</button>
+              <label class="btn strong">📂 Importar .json<input id="fileInput" type="file" accept=".json,application/json" hidden></label>
+              <button id="btnDownload" class="strong">💾 Descargar</button>
             </div>
             <div class="actions">
-              <button id="btnFormat">Formatear</button>
               <button id="btnExample">Ejemplo</button>
+              <button id="btnFormat">Formatear</button>
               <button id="btnCopyTemplate">Copiar plantilla</button>
             </div>
-            <p class="hint">Alternativa sin internet: guardás el <code>.json</code> y lo abrís en la tablet.
+            <label class="chk2" style="margin-top:12px">Clave de acceso (opcional)
+              <input id="tokenInput" type="password" class="nameinput" placeholder="solo si configuraste TELEPROMPTER_TOKEN">
+            </label>
+            <p class="hint">La biblioteca vive en tu base <b>Neon</b> (Vercel). Guardás con <b>☁️ Guardar en la nube</b>
+              y la ves desde cualquier dispositivo. <b>Importar</b>/<b>Descargar</b> quedan como respaldo offline.
               Acepta comentarios <code>//</code> y comas finales, así pegás directo lo que te dé Claude.</p>
           </details>
         </div>
@@ -608,7 +630,7 @@
     const idx=$("#indexDrawer"), scr=$("#scriptDrawer");
     const openIndex=()=>{ closeScript(); idx.classList.add("open"); };
     const closeIndex=()=>idx.classList.remove("open");
-    const openScript=()=>{ closeIndex(); scr.classList.add("open"); };
+    const openScript=()=>{ closeIndex(); scr.classList.add("open"); if(!libLoaded) fetchLibrary(); };
     const closeScript=()=>scr.classList.remove("open");
 
     // ---------- JSON ----------
@@ -619,73 +641,113 @@
       const norm=normalize(data);
       if(!norm.piezas.length){ $("#jsonError").textContent='No encontré "piezas" (ni "bloques").'; return; }
       render(data); localStorage.setItem("mrb_teleprompter", raw);
-      if(showToast){ toast("Guión cargado"); closeScript(); }
+      if(!$("#saveName").value.trim()) $("#saveName").value=nameFromMeta(data.meta);
+      if(showToast){ toast("Cargado al teleprompter"); closeScript(); }
     }
 
-    // ---------- Guión online (cargar desde una URL de internet) ----------
-    const LS_GUION="mrb_teleprompter", LS_URL="mrb_teleprompter_url", LS_AUTO="mrb_teleprompter_auto";
+    // ---------- Biblioteca de guiones (en la nube: API + Neon) ----------
+    const LS_GUION="mrb_teleprompter", LS_TOKEN="mrb_token", LS_LASTID="mrb_last_id";
+    const API="/api/guiones";
+    let libCache=[], libLoaded=false;
 
-    function setUrlStatus(msg,cls){ const el=$("#urlStatus"); if(!el) return;
+    function setLibStatus(msg,cls){ const el=$("#libStatus"); if(!el) return;
       el.textContent=msg||""; el.className="urlstatus"+(cls?" "+cls:""); }
+    function apiHeaders(){ const h={"Content-Type":"application/json"};
+      const t=localStorage.getItem(LS_TOKEN)||""; if(t) h["x-api-key"]=t; return h; }
+    function fmtDate(iso){ if(!iso) return "—"; try{ const d=new Date(iso);
+      return d.toLocaleDateString()+" "+d.toLocaleTimeString().slice(0,5); }catch{ return "—"; } }
+    function nameFromMeta(m){ m=m||{}; return (m.marca? m.marca+(m.semana!=null?(" · Semana "+m.semana):""):"") || ""; }
 
-    // Convierte links "de compartir" comunes en links directos a JSON
-    function normalizeUrl(u){
-      u=(u||"").trim(); if(!u) return u;
-      let m=u.match(/^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/(.+)$/);
-      if(m) return `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}`;
-      if(/dropbox\.com/.test(u)) return u.replace("www.dropbox.com","dl.dropboxusercontent.com").replace(/([?&])dl=\d/,"$1raw=1");
-      m=u.match(/drive\.google\.com\/file\/d\/([^\/]+)/); if(m) return `https://drive.google.com/uc?export=download&id=${m[1]}`;
-      m=u.match(/drive\.google\.com\/open\?id=([^&]+)/); if(m) return `https://drive.google.com/uc?export=download&id=${m[1]}`;
-      return u;
+    async function fetchLibrary(){
+      setLibStatus("Cargando biblioteca…");
+      try{
+        const res=await fetch(API,{headers:apiHeaders(),cache:"no-store"});
+        if(res.status===401) throw new Error("clave incorrecta");
+        if(!res.ok) throw new Error("HTTP "+res.status);
+        libCache=await res.json(); libLoaded=true;
+        setLibStatus(libCache.length?"":"La biblioteca está vacía. Cargá un guión abajo y tocá ☁️ Guardar en la nube.");
+        renderLib();
+      }catch(e){
+        libCache=[]; renderLib();
+        const off=/Failed to fetch|NetworkError|Load failed/i.test(e.message);
+        setLibStatus(off?"Sin conexión a la base de datos. Se activa al desplegar la app en Vercel con Neon. "
+          +"Mientras tanto usá Importar/Pegar abajo.":"No se pudo cargar: "+e.message,"err");
+      }
     }
 
-    async function loadFromUrl(rawUrl,opts){
-      opts=opts||{}; const url=normalizeUrl(rawUrl); if(!url) return false;
-      setUrlStatus("Cargando desde internet…");
+    function renderLib(){
+      const q=($("#libSearch").value||"").toLowerCase().trim();
+      const items=libCache.filter(it=>!q ||
+        (it.nombre+" "+(it.marca||"")+" "+(it.semana||"")+" "+fmtDate(it.actualizado)).toLowerCase().includes(q));
+      if(!items.length){ $("#libList").innerHTML=`<div class="libempty">${libCache.length?"Sin resultados":"—"}</div>`; return; }
+      $("#libList").innerHTML=items.map(it=>`
+        <div class="libitem">
+          <button class="libload" data-id="${esc(it.id)}">
+            <span class="li-name">${esc(it.nombre)}</span>
+            <span class="li-meta">${it.marca?esc(it.marca)+" · ":""}${it.semana!=null&&it.semana!==""?"Sem "+esc(it.semana)+" · ":""}${it.piezas||0} piezas · ${fmtDate(it.actualizado)}</span>
+          </button>
+          <button class="lidel" title="Borrar" data-del="${esc(it.id)}">🗑</button>
+        </div>`).join("");
+      $("#libList").querySelectorAll(".libload").forEach(b=>b.onclick=()=>loadFromCloud(b.dataset.id));
+      $("#libList").querySelectorAll(".lidel").forEach(b=>b.onclick=()=>delFromCloud(b.dataset.del));
+    }
+
+    async function loadFromCloud(id){
+      setLibStatus("Cargando guión…");
       try{
-        const res=await fetch(url,{cache:"no-store"});
+        const res=await fetch(API+"?id="+encodeURIComponent(id),{headers:apiHeaders(),cache:"no-store"});
         if(!res.ok) throw new Error("HTTP "+res.status);
-        const txt=await res.text();
-        const data=looseParse(txt);               // lanza si el JSON está mal
-        if(!normalize(data).piezas.length) throw new Error('el JSON no tiene "piezas"');
-        $("#jsonInput").value=txt; render(data);
-        localStorage.setItem(LS_GUION,txt); localStorage.setItem(LS_URL,rawUrl);
-        const t=new Date().toLocaleTimeString().slice(0,5);
-        if(!opts.silent) setUrlStatus("Cargado desde internet ✓  ("+t+")","ok");
-        if(opts.close) closeScript();
-        return true;
+        const row=await res.json();
+        const txt=JSON.stringify(row.data,null,2);
+        $("#jsonInput").value=txt; $("#saveName").value=row.nombre||""; render(row.data);
+        localStorage.setItem(LS_GUION,txt); localStorage.setItem(LS_LASTID,id);
+        toast("Cargado: "+(row.nombre||"guión")); closeScript();
+      }catch(e){ setLibStatus("No se pudo cargar: "+e.message,"err"); }
+    }
+
+    async function saveToCloud(){
+      const raw=$("#jsonInput").value.trim();
+      if(!raw){ setLibStatus("No hay guión para guardar.","err"); return; }
+      let data; try{ data=looseParse(raw); }catch(e){ setLibStatus("JSON inválido: "+e.message,"err"); return; }
+      if(!normalize(data).piezas.length){ setLibStatus('El guión no tiene "piezas".',"err"); return; }
+      const nombre=($("#saveName").value.trim()) || nameFromMeta(data.meta) || "Guión";
+      const existing=libCache.find(it=>(it.nombre||"").toLowerCase()===nombre.toLowerCase());
+      setLibStatus("Guardando…");
+      try{
+        const method=existing?"PUT":"POST";
+        const url=API+(existing?("?id="+encodeURIComponent(existing.id)):"");
+        const res=await fetch(url,{method,headers:apiHeaders(),body:JSON.stringify({nombre,data})});
+        if(!res.ok){ let j={}; try{ j=await res.json(); }catch{} throw new Error(j.error||("HTTP "+res.status)); }
+        const row=await res.json();
+        localStorage.setItem(LS_LASTID,row.id); localStorage.setItem(LS_GUION,raw);
+        setLibStatus("Guardado ✓  "+row.nombre+(existing?" (actualizado)":""),"ok");
+        toast("Guardado en la nube ✓"); await fetchLibrary();
       }catch(e){
-        if(opts.silent) return false;   // intento por defecto: fallar sin ruido
-        const cors=/Failed to fetch|NetworkError|Load failed/i.test(e.message);
-        setUrlStatus((cors?"No se pudo acceder a la URL (bloqueo CORS o sin conexión). Uso la última copia. "
-          +"Tip: GitHub raw, Gist o npoint.io funcionan bien.":"Error: "+e.message+". Uso la última copia."),"err");
-        return false;
+        const off=/Failed to fetch|NetworkError|Load failed/i.test(e.message);
+        setLibStatus(off?"Sin conexión a la base (aún no desplegada en Vercel). El guión quedó cargado; usá 💾 Descargar como respaldo.":"No se pudo guardar: "+e.message,"err");
       }
+    }
+
+    async function delFromCloud(id){
+      const it=libCache.find(x=>x.id===id); if(!it) return;
+      if(!confirm('¿Borrar "'+it.nombre+'" de la biblioteca?')) return;
+      setLibStatus("Borrando…");
+      try{
+        const res=await fetch(API+"?id="+encodeURIComponent(id),{method:"DELETE",headers:apiHeaders()});
+        if(!res.ok) throw new Error("HTTP "+res.status);
+        toast("Borrado"); await fetchLibrary();
+      }catch(e){ setLibStatus("No se pudo borrar: "+e.message,"err"); }
     }
 
     function loadInitial(){
-      // fuente por URL: ?src= / #src= en el enlace, o la última URL guardada
-      const qp=new URLSearchParams(location.search);
-      const hp=new URLSearchParams((location.hash||"").replace(/^#/,""));
-      const src=qp.get("src")||qp.get("guion")||hp.get("src");
-      const savedUrl=localStorage.getItem(LS_URL)||"";
-      const autoRaw=localStorage.getItem(LS_AUTO); const autoOn = autoRaw===null?true:autoRaw==="1";
-      $("#chkAuto").checked=autoOn;
-      $("#urlInput").value = src || savedUrl;
-
-      // muestro ya la última copia (o el ejemplo) para que nunca quede vacío / offline OK
+      // muestra ya la última copia (o el ejemplo) para que nunca quede vacío / offline OK
       const cached=localStorage.getItem(LS_GUION);
       const primed=cached?safeParse(cached):null;
+      const use=primed||EJEMPLO;
       $("#jsonInput").value = cached || JSON.stringify(EJEMPLO,null,2);
-      render(primed||EJEMPLO);
-
-      // luego, si hay URL, traigo la última versión de internet
-      if(src){ localStorage.setItem(LS_URL,src); loadFromUrl(src); }
-      else if(savedUrl && autoOn){ loadFromUrl(savedUrl); }
-      else if(!cached && /^https?:$/.test(location.protocol)){
-        // primer arranque hospedado: probar el guión del mismo sitio (sin CORS)
-        loadFromUrl("guiones/actual.json",{silent:true});
-      }
+      $("#saveName").value = nameFromMeta(use.meta);
+      $("#tokenInput").value = localStorage.getItem(LS_TOKEN)||"";
+      render(use);
     }
 
     // ---------- Esquema (doc para Claude) ----------
@@ -735,14 +797,12 @@
     $("#btnReadline").onclick=()=>{ app.classList.toggle("readline"); $("#btnReadline").classList.toggle("on"); };
     $("#btnFont").onclick=()=>{ serif=!serif; setFont(); $("#btnFont").classList.toggle("on",serif); toast(serif?"Serif":"Urbanist"); };
     $("#btnFull").onclick=toggleFull;
-    $("#btnLoadUrl").onclick=()=>{ const u=$("#urlInput").value.trim();
-      if(!u){ setUrlStatus("Pegá una URL primero.","err"); return; } loadFromUrl(u,{close:true}); };
-    $("#btnRefresh").onclick=()=>{ const u=$("#urlInput").value.trim()||localStorage.getItem(LS_URL);
-      if(u) loadFromUrl(u); else setUrlStatus("No hay URL configurada.","err"); };
-    $("#urlInput").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#btnLoadUrl").click(); } });
-    $("#chkAuto").onchange=e=>localStorage.setItem(LS_AUTO, e.target.checked?"1":"0");
+    $("#btnLibRefresh").onclick=fetchLibrary;
+    $("#libSearch").oninput=renderLib;
+    $("#btnSaveCloud").onclick=saveToCloud;
+    $("#tokenInput").onchange=e=>{ localStorage.setItem(LS_TOKEN,e.target.value.trim()); fetchLibrary(); };
     $("#btnApply").onclick=()=>loadJSON(true);
-    $("#btnExample").onclick=()=>{ $("#jsonInput").value=JSON.stringify(EJEMPLO,null,2); loadJSON(false); toast("Ejemplo cargado"); };
+    $("#btnExample").onclick=()=>{ $("#jsonInput").value=JSON.stringify(EJEMPLO,null,2); loadJSON(false); $("#saveName").value=nameFromMeta(EJEMPLO.meta); toast("Ejemplo cargado"); };
     $("#btnFormat").onclick=()=>{ const d=safeParse($("#jsonInput").value); if(d){ $("#jsonInput").value=JSON.stringify(d,null,2); $("#jsonError").textContent=""; } else $("#jsonError").textContent="No se puede formatear: JSON inválido."; };
     $("#btnCopyTemplate").onclick=()=>{
       const plantilla={ meta:{ influencer:"", handle:"", marca:"", semana:1, registro:"voseo_ar",
@@ -779,7 +839,9 @@
       toast(parsed?("Guardado: "+a.download):"Guardado (¡ojo: el JSON tiene un error!)");
     };
     $("#fileInput").onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
-      r.onload=()=>{ $("#jsonInput").value=r.result; loadJSON(true); toast("Abierto: "+f.name); e.target.value=""; }; r.readAsText(f); };
+      r.onload=()=>{ $("#jsonInput").value=r.result; const d=safeParse(r.result);
+        $("#saveName").value=(d&&nameFromMeta(d.meta))||f.name.replace(/\.json$/i,"");
+        loadJSON(false); toast("Importado: "+f.name+" — ahora ☁️ Guardar en la nube"); e.target.value=""; }; r.readAsText(f); };
 
     document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
       document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));

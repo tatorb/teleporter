@@ -1,0 +1,10 @@
+{
+  "name": "teleprompter-studio-mrb",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Teleprompter para reels y entrevistas, con biblioteca de guiones en Neon/Vercel.",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.5"
+  }
+}

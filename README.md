@@ -12,72 +12,62 @@ jerarquía construida con peso, escala, mayúsculas y tracking en vez de color.
 ## Cómo usarlo
 
 1. Abrí `index.html` en el navegador.
-2. **Guión** (`{ }` o tecla `G`): pegá el JSON de la semana → **Cargar guión**.
+2. **Guión** (`{ }` o tecla `G`): elegí un guión de la **biblioteca** o pegá el JSON de la semana.
 3. **Índice** (`≡` o tecla `I`): saltá entre piezas y mirá la distribución de contenido.
 4. **Reproducir** (barra espaciadora): arranca con cuenta regresiva 3·2·1.
 
 El guión y los ajustes se guardan solos en el navegador (localStorage).
 
-## Cargar el guión desde internet (recomendado)
+## Biblioteca de guiones (base de datos en la nube)
 
-Para no depender de guardar y abrir archivos a mano: en el panel **Guión** hay
-una sección **🌐 Guión online (URL)**. Pegás **una sola vez** la URL de un JSON
-publicado en internet y la app lo trae sola cada vez que abrís la página.
+La app guarda los guiones en una **base de datos Neon (Postgres) sobre Vercel**.
+Eso te da una **biblioteca compartida**: guardás un guión con su nombre y queda
+disponible **desde cualquier dispositivo** (compu, tablet), sin mover archivos.
 
-1. Publicás el guión en algún lugar que devuelva el JSON por URL (ver opciones abajo).
-2. En la app pegás esa URL en **🌐 Guión online (URL)** → **Cargar**.
-3. Dejás tildado *"Auto-cargar esta URL cada vez que abro la página"*.
+En el panel **Guión** → **☁️ Biblioteca de guiones**:
 
-A partir de ahí: editás el guión en internet desde la compu y **la tablet trae
-la última versión sola** al abrir. Si estás sin conexión, usa la última copia
-que quedó guardada. El botón **🔄** fuerza traer la versión más nueva.
+- **Buscar** por nombre, marca, semana o fecha.
+- Tocás un guión de la lista para **cargarlo** al teleprompter.
+- **☁️ Guardar en la nube** guarda el guión actual con el nombre que pongas
+  (si el nombre ya existe, lo actualiza; si no, crea uno nuevo). La fecha se
+  registra sola.
+- **🗑** borra un guión de la biblioteca.
 
-**Acceso directo (bookmark):** podés abrir la app con la URL ya incluida usando
-`index.html?src=TU_URL`. Guardás ese enlace en la pantalla de inicio de la
-tablet y con un toque abre el teleprompter con el guión cargado.
+Debajo, en *✍️ Editar / pegar JSON · importar · descargar*, tenés el editor para
+pegar/editar el JSON, **Importar** un `.json` del dispositivo y **Descargar** el
+actual como respaldo. El flujo normal: pegás lo que te da Claude → *Cargar al
+teleprompter* → *☁️ Guardar en la nube*.
 
-### Dónde publicar el JSON
+### Desplegar en Vercel + Neon (una vez)
 
-El navegador exige que el hosting permita **CORS**. Funcionan bien:
+La app es estática (`index.html`) + una función serverless (`api/guiones.js`)
+que habla con Neon. Para ponerla online:
 
-| Opción | Cómo se edita | URL a pegar |
-|--------|---------------|-------------|
-| **GitHub** (este repo) | Editás `guiones/actual.json` en github.com o me lo pedís a mí | `https://raw.githubusercontent.com/tatorb/teleporter/main/guiones/actual.json` |
-| **Gist** | gist.github.com, editás en el navegador | el botón **Raw** del Gist |
-| **npoint.io** | editor JSON online, gratis | la URL de API que te da |
-| **Dropbox** | subís el archivo | el link de compartir (la app lo convierte a directo) |
+1. En **Vercel**, *Add New → Project* e importá el repo `tatorb/teleporter`
+   (framework preset: **Other**, sin build).
+2. Agregá la **integración de Neon** (Vercel → Integrations → Neon) o creá una
+   base en Neon y pegá su connection string. Debe quedar como variable de entorno
+   **`DATABASE_URL`** en el proyecto de Vercel.
+3. *(Opcional)* Para que no cualquiera con el link escriba, seteá la variable
+   **`TELEPROMPTER_TOKEN`** con una clave. Después la ponés una vez en la app
+   (*Editar / pegar JSON → Clave de acceso*).
+4. **Deploy**. Listo: abrís la URL de Vercel en la compu y la tablet, y las dos
+   ven la misma biblioteca.
 
-> Google Drive **no** sirve para esto: bloquea el acceso directo (CORS) desde el navegador.
+La tabla `guiones` **se crea sola** en el primer guardado (ver `db/schema.sql`
+por referencia). La API:
 
-La app entiende links "de compartir" de GitHub y Dropbox y los convierte al link
-directo sola.
+| Método | Ruta | Acción |
+|--------|------|--------|
+| `GET` | `/api/guiones` | lista (id, nombre, marca, semana, piezas, fecha) |
+| `GET` | `/api/guiones?id=…` | trae un guión completo |
+| `POST` | `/api/guiones` | crea (`{ nombre, data }`) |
+| `PUT` | `/api/guiones?id=…` | actualiza |
+| `DELETE` | `/api/guiones?id=…` | borra |
 
-### Que también la app viva en internet (GitHub Pages)
-
-Si querés abrir **la app misma** desde una URL (sin archivo local), activá GitHub
-Pages en el repo: *Settings → Pages → Deploy from a branch → `main` / root*.
-Queda publicada en `https://tatorb.github.io/teleporter/` y, como el guión está
-en el mismo sitio (`guiones/actual.json`), **la carga sola sin configurar nada**.
-Editás `guiones/actual.json` en github.com y listo.
-
-## Guardar y abrir archivos (alternativa sin internet)
-
-En el panel **Guión** tenés dos botones:
-
-- **💾 Guardar .json** — descarga el guión como archivo, con el nombre armado
-  automáticamente desde la marca y la semana (ej. `financers-semana-1.json`).
-  Guarda exactamente lo que editaste (incluidos los comentarios `//`).
-- **📂 Abrir .json** — abre un archivo `.json` desde el dispositivo.
-
-Flujo típico:
-
-1. En la **computadora**, cargás/editás el guión y tocás **💾 Guardar .json**.
-2. Pasás ese archivo a la **tablet** (Google Drive, iCloud, AirDrop, etc.).
-3. En la tablet abrís esta misma página (`index.html`) y tocás **📂 Abrir .json**.
-
-En iPad, *Abrir .json* usa la app **Archivos**, así que podés levantar el guión
-directo desde Drive o iCloud. El último guión abierto queda guardado en el
-navegador de cada dispositivo.
+> Si abrís `index.html` como archivo local (sin desplegar), la biblioteca en la
+> nube no está disponible y la app te lo avisa; podés seguir usando
+> Importar/Pegar/Descargar como respaldo offline.
 
 ## Funciones
 
