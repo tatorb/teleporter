@@ -24,6 +24,13 @@ La app guarda los guiones en una **base de datos Neon (Postgres) sobre Vercel**.
 Eso te da una **biblioteca compartida**: guardás un guión con su nombre y queda
 disponible **desde cualquier dispositivo** (compu, tablet), sin mover archivos.
 
+> **Importante — usá la URL de Vercel.** La biblioteca vive en tu app de Vercel
+> (ej. `https://teleporter-kappa.vercel.app`). Si abrís la app desde **GitHub Pages**
+> (`*.github.io`) o un archivo local, esa dirección **no tiene base de datos** y la
+> biblioteca no carga. Solución: abrí la app desde la URL de Vercel (guardala como
+> bookmark en la compu y la tablet), o pegá tu URL de Vercel en *Editar / pegar JSON →
+> Servidor de la biblioteca* (o abrí con `?api=https://tu-app.vercel.app`).
+
 En el panel **Guión** → **☁️ Biblioteca de guiones**:
 
 - **Buscar** por nombre, marca, semana o fecha.

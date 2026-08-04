@@ -364,12 +364,17 @@
               <button id="btnFormat">Formatear</button>
               <button id="btnCopyTemplate">Copiar plantilla</button>
             </div>
-            <label class="chk2" style="margin-top:12px">Clave de acceso (opcional)
+            <label class="chk2" style="margin-top:12px">Servidor de la biblioteca (URL de tu app en Vercel)
+              <input id="apiBaseInput" type="url" spellcheck="false" class="nameinput" placeholder="https://teleporter-kappa.vercel.app">
+            </label>
+            <label class="chk2" style="margin-top:10px">Clave de acceso (opcional)
               <input id="tokenInput" type="password" class="nameinput" placeholder="solo si configuraste TELEPROMPTER_TOKEN">
             </label>
-            <p class="hint">La biblioteca vive en tu base <b>Neon</b> (Vercel). Guardás con <b>☁️ Guardar en la nube</b>
-              y la ves desde cualquier dispositivo. <b>Importar</b>/<b>Descargar</b> quedan como respaldo offline.
-              Acepta comentarios <code>//</code> y comas finales, así pegás directo lo que te dé Claude.</p>
+            <p class="hint">La biblioteca vive en tu base <b>Neon</b>, servida por tu app en <b>Vercel</b>. Lo más simple:
+              abrí siempre la app desde la URL de Vercel. Si la abrís desde otro lado (GitHub Pages, archivo local),
+              pegá acá arriba tu URL de Vercel y la biblioteca funciona igual.
+              <b>Importar</b>/<b>Descargar</b> quedan como respaldo offline.
+              Acepta comentarios <code>//</code>, así pegás directo lo que te dé Claude.</p>
           </details>
         </div>
         <div class="pane" data-pane="schema"><div class="schema" id="schemaHtml"></div></div>
@@ -646,10 +651,13 @@
     }
 
     // ---------- Biblioteca de guiones (en la nube: API + Neon) ----------
-    const LS_GUION="mrb_teleprompter", LS_TOKEN="mrb_token", LS_LASTID="mrb_last_id";
-    const API="/api/guiones";
+    const LS_GUION="mrb_teleprompter", LS_TOKEN="mrb_token", LS_LASTID="mrb_last_id", LS_APIBASE="mrb_api_base";
     let libCache=[], libLoaded=false;
 
+    // La biblioteca vive en la app de Vercel. Si abrís la app desde otro lado
+    // (GitHub Pages, archivo local), se configura acá la URL del servidor de Vercel.
+    function apiBase(){ return (localStorage.getItem(LS_APIBASE)||"").replace(/\/+$/,""); }
+    function apiUrl(suffix){ return apiBase()+"/api/guiones"+(suffix||""); }
     function setLibStatus(msg,cls){ const el=$("#libStatus"); if(!el) return;
       el.textContent=msg||""; el.className="urlstatus"+(cls?" "+cls:""); }
     function apiHeaders(){ const h={"Content-Type":"application/json"};
@@ -658,21 +666,36 @@
       return d.toLocaleDateString()+" "+d.toLocaleTimeString().slice(0,5); }catch{ return "—"; } }
     function nameFromMeta(m){ m=m||{}; return (m.marca? m.marca+(m.semana!=null?(" · Semana "+m.semana):""):"") || ""; }
 
+    // ¿esta dirección tiene la base? (Vercel sí; GitHub Pages / archivo local no)
+    function noApiHere(){ return !apiBase() &&
+      (/github\.io$/i.test(location.hostname) || location.protocol==="file:"); }
+
+    function libErr(e){
+      libCache=[]; renderLib();
+      if(e.message==="no-api" || e.message==="not-json" || noApiHere()){
+        setLibStatus("Esta dirección no tiene base de datos (parece GitHub Pages o un archivo local). "
+          +"Abrí la app desde tu URL de Vercel, o pegá esa URL abajo en «Servidor de la biblioteca».","err");
+      } else if(e.message==="clave incorrecta"){
+        setLibStatus("Clave de acceso incorrecta.","err");
+      } else if(/Failed to fetch|NetworkError|Load failed/i.test(e.message)){
+        setLibStatus("Sin conexión al servidor. Revisá la URL de Vercel o tu internet.","err");
+      } else setLibStatus("No se pudo cargar: "+e.message,"err");
+    }
+
     async function fetchLibrary(){
       setLibStatus("Cargando biblioteca…");
+      if(noApiHere()){ libErr({message:"no-api"}); return; }
       try{
-        const res=await fetch(API,{headers:apiHeaders(),cache:"no-store"});
+        const res=await fetch(apiUrl(),{headers:apiHeaders(),cache:"no-store"});
         if(res.status===401) throw new Error("clave incorrecta");
+        if(res.status===404) throw new Error("no-api");
         if(!res.ok) throw new Error("HTTP "+res.status);
-        libCache=await res.json(); libLoaded=true;
+        let rows; try{ rows=await res.json(); }catch{ throw new Error("not-json"); }
+        if(!Array.isArray(rows)) throw new Error("not-json");
+        libCache=rows; libLoaded=true;
         setLibStatus(libCache.length?"":"La biblioteca está vacía. Cargá un guión abajo y tocá ☁️ Guardar en la nube.");
         renderLib();
-      }catch(e){
-        libCache=[]; renderLib();
-        const off=/Failed to fetch|NetworkError|Load failed/i.test(e.message);
-        setLibStatus(off?"Sin conexión a la base de datos. Se activa al desplegar la app en Vercel con Neon. "
-          +"Mientras tanto usá Importar/Pegar abajo.":"No se pudo cargar: "+e.message,"err");
-      }
+      }catch(e){ libErr(e); }
     }
 
     function renderLib(){
@@ -695,7 +718,7 @@
     async function loadFromCloud(id){
       setLibStatus("Cargando guión…");
       try{
-        const res=await fetch(API+"?id="+encodeURIComponent(id),{headers:apiHeaders(),cache:"no-store"});
+        const res=await fetch(apiUrl("?id="+encodeURIComponent(id)),{headers:apiHeaders(),cache:"no-store"});
         if(!res.ok) throw new Error("HTTP "+res.status);
         const row=await res.json();
         const txt=JSON.stringify(row.data,null,2);
@@ -715,17 +738,14 @@
       setLibStatus("Guardando…");
       try{
         const method=existing?"PUT":"POST";
-        const url=API+(existing?("?id="+encodeURIComponent(existing.id)):"");
+        const url=apiUrl(existing?("?id="+encodeURIComponent(existing.id)):"");
         const res=await fetch(url,{method,headers:apiHeaders(),body:JSON.stringify({nombre,data})});
         if(!res.ok){ let j={}; try{ j=await res.json(); }catch{} throw new Error(j.error||("HTTP "+res.status)); }
         const row=await res.json();
         localStorage.setItem(LS_LASTID,row.id); localStorage.setItem(LS_GUION,raw);
         setLibStatus("Guardado ✓  "+row.nombre+(existing?" (actualizado)":""),"ok");
         toast("Guardado en la nube ✓"); await fetchLibrary();
-      }catch(e){
-        const off=/Failed to fetch|NetworkError|Load failed/i.test(e.message);
-        setLibStatus(off?"Sin conexión a la base (aún no desplegada en Vercel). El guión quedó cargado; usá 💾 Descargar como respaldo.":"No se pudo guardar: "+e.message,"err");
-      }
+      }catch(e){ libErr(e); }
     }
 
     async function delFromCloud(id){
@@ -733,20 +753,24 @@
       if(!confirm('¿Borrar "'+it.nombre+'" de la biblioteca?')) return;
       setLibStatus("Borrando…");
       try{
-        const res=await fetch(API+"?id="+encodeURIComponent(id),{method:"DELETE",headers:apiHeaders()});
+        const res=await fetch(apiUrl("?id="+encodeURIComponent(id)),{method:"DELETE",headers:apiHeaders()});
         if(!res.ok) throw new Error("HTTP "+res.status);
         toast("Borrado"); await fetchLibrary();
       }catch(e){ setLibStatus("No se pudo borrar: "+e.message,"err"); }
     }
 
     function loadInitial(){
+      // permite fijar el servidor por enlace: ?api=https://tu-app.vercel.app
+      const qp=new URLSearchParams(location.search);
+      const apiParam=qp.get("api"); if(apiParam) localStorage.setItem(LS_APIBASE,apiParam.replace(/\/+$/,""));
+      $("#apiBaseInput").value = localStorage.getItem(LS_APIBASE)||"";
+      $("#tokenInput").value = localStorage.getItem(LS_TOKEN)||"";
       // muestra ya la última copia (o el ejemplo) para que nunca quede vacío / offline OK
       const cached=localStorage.getItem(LS_GUION);
       const primed=cached?safeParse(cached):null;
       const use=primed||EJEMPLO;
       $("#jsonInput").value = cached || JSON.stringify(EJEMPLO,null,2);
       $("#saveName").value = nameFromMeta(use.meta);
-      $("#tokenInput").value = localStorage.getItem(LS_TOKEN)||"";
       render(use);
     }
 
@@ -800,6 +824,7 @@
     $("#btnLibRefresh").onclick=fetchLibrary;
     $("#libSearch").oninput=renderLib;
     $("#btnSaveCloud").onclick=saveToCloud;
+    $("#apiBaseInput").onchange=e=>{ localStorage.setItem(LS_APIBASE,e.target.value.trim().replace(/\/+$/,"")); libLoaded=false; fetchLibrary(); };
     $("#tokenInput").onchange=e=>{ localStorage.setItem(LS_TOKEN,e.target.value.trim()); fetchLibrary(); };
     $("#btnApply").onclick=()=>loadJSON(true);
     $("#btnExample").onclick=()=>{ $("#jsonInput").value=JSON.stringify(EJEMPLO,null,2); loadJSON(false); $("#saveName").value=nameFromMeta(EJEMPLO.meta); toast("Ejemplo cargado"); };
