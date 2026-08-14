@@ -272,6 +272,20 @@
       pointer-events:none; box-shadow:var(--shadow-lg); }
     .toast.show { opacity:1; }
 
+    /* ---------- Modo edición en vivo ---------- */
+    .editonly { display:none; }
+    #app.editing .editonly { display:inline-flex; }
+    #app.editing #btnEdit { background:#fff; color:#000; border-color:#fff; }
+    /* achica el texto para usarlo como editor; anula espejo mientras editás */
+    #app.editing #script { font-size:calc(var(--fs) * .5); line-height:1.42; padding:4vh 3vw 44vh; transform:none !important; }
+    #app.editing #readline, #app.editing #vignette, #app.editing #progress { display:none; }
+    #app.editing .bloque { margin-bottom:.7em; }
+    [data-edit][contenteditable="true"] { cursor:text; border-radius:8px;
+      outline:1px dashed var(--rule); outline-offset:4px; transition:background .12s,outline-color .12s; }
+    [data-edit][contenteditable="true"]:hover { outline-color:var(--muted); }
+    [data-edit][contenteditable="true"]:focus { outline:2px solid var(--fg); background:rgba(127,127,127,.10); }
+    #app.editing .b-cta [data-edit][contenteditable="true"]:focus { background:rgba(255,255,255,.14); }
+
     @media (max-width:760px) {
       .ctl .lbl { display:none; } input[type=range] { width:76px; }
       #script { padding-top:48vh; padding-bottom:80vh; }
@@ -297,6 +311,8 @@
       <button id="btnIndex" class="ghost" title="Índice de piezas (I)">≡ <span class="btn-lbl">Índice</span></button>
       <button id="btnPlay" class="primary" title="Reproducir / Pausar (Espacio)">▶︎ <span id="playLbl">Reproducir</span></button>
       <button id="btnRestart" class="ghost" title="Reiniciar (R)">↺ <span class="btn-lbl">Reiniciar</span></button>
+      <button id="btnEdit" class="ghost" title="Editar el texto en vivo (E)">✎ <span class="btn-lbl">Editar</span></button>
+      <button id="btnEditSave" class="editonly" title="Aplicar y guardar en la nube">☁️ <span class="btn-lbl">Guardar</span></button>
 
       <div class="divider"></div>
       <div class="ctl" title="Velocidad (↑/↓)"><span class="lbl">Velocidad</span>
@@ -385,6 +401,7 @@
             <div><b>+ / −</b> Tamaño</div>
             <div><b>← / →</b> Saltar bloque</div>
             <div><b>I</b> Índice de piezas</div>
+            <div><b>E</b> Editar texto en vivo</div>
             <div><b>R</b> Reiniciar</div>
             <div><b>B</b> Fondo oscuro/claro</div>
             <div><b>M</b> Espejo</div>
@@ -489,8 +506,10 @@
     // ---------- Render ----------
     const esc=t=>(t==null?"":String(t)).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 
+    let currentData=null;
     function render(data){
       const { meta, config, piezas } = normalize(data);
+      currentData={ meta, config, piezas };   // referencia viva para la edición en vivo
       script.innerHTML="";
       piezas.forEach((p,idx)=>{
         const pieza=document.createElement("section");
@@ -511,12 +530,12 @@
             <span>Pieza ${p.id!=null?esc(p.id):idx+1}${p.dia!=null?" · Día "+esc(p.dia):""}</span>
             ${estado?`<span class="estado"><span class="dot ${dotCls}"></span>${esc(EST_LABEL[estado]||estado)}</span>`:""}
           </div>
-          <div class="pieza-titulo">${esc(p.titulo||"")}</div>
+          <div class="pieza-titulo" data-edit="titulo" data-pi="${idx}">${esc(p.titulo||"")}</div>
           <div class="pieza-meta">${metaBits.map((b,i)=>`<span class="${i?"sepdot":""}">${esc(b)}</span>`).join("")}
             ${ctaWord?`<span class="sepdot">CTA: ${esc(ctaWord)}</span>`:""}</div>
         </div>`;
 
-        (p.bloques||[]).forEach(b=>{
+        (p.bloques||[]).forEach((b,bi)=>{
           const rol=(b.rol||"contenido").toLowerCase();
           const label=b.label!=null?b.label:(ROL_LABEL[rol]??rol);
           const slide=b.slide!=null?`<span class="slidechip">Slide ${esc(b.slide)}</span>`:"";
@@ -528,7 +547,7 @@
             if(p.cta.recurso) info.push("Recurso: "+p.cta.recurso);
             if(info.length) extra=`<div class="cta-info">${esc(info.join("  ·  "))}</div>`;
           }
-          html+=`<div class="bloque b-${rol}">${labelHtml}${guia}<div class="b-texto">${esc(b.texto||"")}</div>${extra}</div>`;
+          html+=`<div class="bloque b-${rol}">${labelHtml}${guia}<div class="b-texto" data-edit="texto" data-pi="${idx}" data-bi="${bi}">${esc(b.texto||"")}</div>${extra}</div>`;
         });
         pieza.innerHTML=html;
         script.appendChild(pieza);
@@ -627,6 +646,33 @@
     function setDark(on){ app.classList.toggle("oscuro",on); $("#chkDark").checked=on; }
     function toggleFull(){ if(!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
     function setFont(){ document.documentElement.style.setProperty("--readfont", serif?"var(--font-serif)":"var(--font)"); }
+
+    // ---------- Edición en vivo (dentro del reproductor) ----------
+    let editing=false;
+    function commitEdits(){
+      if(!currentData) return false;
+      script.querySelectorAll("[data-edit]").forEach(el=>{
+        const val=el.innerText.replace(/ /g," ").replace(/\n{3,}/g,"\n\n").trim();
+        const p=currentData.piezas&&currentData.piezas[+el.dataset.pi]; if(!p) return;
+        if(el.dataset.edit==="titulo") p.titulo=val;
+        else if(el.dataset.edit==="texto"&&p.bloques&&p.bloques[+el.dataset.bi]) p.bloques[+el.dataset.bi].texto=val;
+      });
+      const raw=JSON.stringify(currentData,null,2);
+      $("#jsonInput").value=raw; $("#saveName").value=$("#saveName").value||nameFromMeta(currentData.meta);
+      localStorage.setItem("mrb_teleprompter",raw);
+      return true;
+    }
+    function setEditing(on){
+      editing=on; app.classList.toggle("editing",on);
+      if(on) pause();
+      script.querySelectorAll("[data-edit]").forEach(el=>{ el.contentEditable=on?"true":"false"; el.spellcheck=false; });
+      $("#btnEdit").classList.toggle("on",on);
+      $("#btnEdit").firstChild.textContent=on?"✓ ":"✎ ";
+      const lbl=$("#btnEdit").querySelector(".btn-lbl"); if(lbl) lbl.textContent=on?"Listo":"Editar";
+      if(on){ toast("Edición: tocá el texto para corregirlo"); }
+      else { commitEdits(); toast("Cambios aplicados"); }
+    }
+    async function saveEditsToCloud(){ commitEdits(); await saveToCloud(); }
 
     let toastT; function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show");
       clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1400); }
@@ -812,6 +858,8 @@
     // ---------- Eventos ----------
     $("#btnPlay").onclick=toggle;
     $("#btnRestart").onclick=restart;
+    $("#btnEdit").onclick=()=>setEditing(!editing);
+    $("#btnEditSave").onclick=saveEditsToCloud;
     $("#btnIndex").onclick=()=>idx.classList.contains("open")?closeIndex():openIndex();
     $("#btnScript").onclick=()=>scr.classList.contains("open")?closeScript():openScript();
     $("#closeIndex").onclick=closeIndex; $("#closeScript").onclick=closeScript;
@@ -879,10 +927,11 @@
       if(playing) hideT=setTimeout(()=>app.classList.add("immersive"),2500); }
     ["mousemove","touchstart","keydown"].forEach(ev=>window.addEventListener(ev,showBars,{passive:true}));
 
-    $("#stage").addEventListener("click",e=>{ if(idx.classList.contains("open")||scr.classList.contains("open")) return; toggle(); });
+    $("#stage").addEventListener("click",e=>{ if(editing||idx.classList.contains("open")||scr.classList.contains("open")) return; toggle(); });
 
     window.addEventListener("keydown",e=>{
-      const typing=/INPUT|TEXTAREA/.test(document.activeElement.tagName);
+      if(editing){ if(e.key==="Escape") setEditing(false); return; }   // en edición: teclado libre
+      const typing=/INPUT|TEXTAREA/.test(document.activeElement.tagName)||document.activeElement.isContentEditable;
       if(typing&&e.key!=="Escape") return;
       switch(e.key){
         case " ": e.preventDefault(); toggle(); break;
@@ -900,6 +949,7 @@
         case "f": case "F": toggleFull(); break;
         case "g": case "G": scr.classList.contains("open")?closeScript():openScript(); break;
         case "i": case "I": idx.classList.contains("open")?closeIndex():openIndex(); break;
+        case "e": case "E": setEditing(true); break;
         case "Home": resetScroll(); break;
         case "Escape": closeIndex(); closeScript(); break;
       }

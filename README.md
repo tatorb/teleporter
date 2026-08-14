@@ -89,6 +89,10 @@ por referencia). La API:
   **distribución de contenido** real vs. objetivo por categoría.
 - **Línea de lectura**, **modo foco**, **cuenta regresiva**, **barra de progreso**,
   **pantalla completa** y **barra que se auto-oculta** al grabar.
+- **Edición en vivo** (botón **✎ Editar**, tecla `E`): para cambios de último
+  minuto sin abrir el JSON. Achica el texto, tocás cualquier bloque o título y
+  lo corregís con el teclado. **✓ Listo** aplica los cambios al guión que está
+  corriendo; **☁️ Guardar** además los guarda en la nube.
 - **Parser tolerante**: acepta comentarios `//` y comas finales, así pegás
   directo lo que te genera Claude.
 
@@ -102,7 +106,8 @@ por referencia). La API:
 | ← / → | Saltar bloque | `T` | Tipografía |
 | `I` | Índice | `F` | Pantalla completa |
 | `R` | Reiniciar | `G` | Panel de guión |
-| Home | Ir al inicio | Esc | Cerrar paneles |
+| `E` | Editar en vivo | Esc | Salir de edición / cerrar |
+| Home | Ir al inicio | | |
 
 ## Estructura del guión (JSON)
 
