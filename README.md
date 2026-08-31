@@ -93,6 +93,9 @@ por referencia). La API:
   minuto sin abrir el JSON. Achica el texto, tocás cualquier bloque o título y
   lo corregís con el teclado. **✓ Listo** aplica los cambios al guión que está
   corriendo; **☁️ Guardar** además los guarda en la nube.
+- **Editor JSON con números de línea**: el cuadro de *Editar / pegar JSON* muestra
+  la numeración a un costado (sincronizada con el scroll) y, si el JSON tiene un
+  error, el mensaje indica en qué **línea y columna** está.
 - **Parser tolerante**: acepta comentarios `//` y comas finales, así pegás
   directo lo que te genera Claude.
 

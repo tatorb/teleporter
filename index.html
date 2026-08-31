@@ -200,10 +200,18 @@
     .tabs button.active { background:var(--fg); color:var(--bg); border-color:var(--fg); }
     .pane { display:none; } .pane.active { display:block; }
 
-    textarea { width:100%; height:44vh; resize:vertical; background:var(--gray-25); color:var(--fg);
-      border:1px solid var(--hairline); border-radius:var(--radius-lg); padding:14px;
+    /* Editor JSON con números de línea */
+    .editorwrap { display:flex; height:44vh; min-height:160px; overflow:hidden; resize:vertical;
+      background:var(--gray-25); border:1px solid var(--hairline); border-radius:var(--radius-lg); }
+    #app.oscuro .editorwrap { background:#0d1114; }
+    .editorwrap .gutter { flex:0 0 auto; min-width:36px; text-align:right; padding:14px 8px 14px 10px;
+      font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-size:12.5px; line-height:1.55;
+      color:var(--faint); border-right:1px solid var(--rule); white-space:pre; overflow:hidden;
+      user-select:none; -webkit-user-select:none; }
+    .editorwrap textarea { flex:1 1 auto; width:100%; height:100%; resize:none; border:none;
+      border-radius:0; background:transparent; color:var(--fg); padding:14px; white-space:pre; overflow:auto;
       font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-size:12.5px; line-height:1.55; }
-    #app.oscuro textarea { background:#0d1114; }
+    .editorwrap textarea:focus { outline:none; }
     .actions { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
     .actions button,.actions .btn { color:var(--fg); background:transparent; border:1px solid var(--hairline);
       font-weight:500; letter-spacing:0; text-transform:none; }
@@ -369,7 +377,7 @@
 
           <details class="manual">
             <summary>✍️ Editar / pegar JSON · importar · descargar</summary>
-            <textarea id="jsonInput" spellcheck="false"></textarea>
+            <div class="editorwrap"><div class="gutter" id="gutter" aria-hidden="true"></div><textarea id="jsonInput" spellcheck="false" wrap="off"></textarea></div>
             <div id="jsonError"></div>
             <div class="actions">
               <button id="btnApply" class="primary">Cargar al teleprompter</button>
@@ -659,7 +667,7 @@
         else if(el.dataset.edit==="texto"&&p.bloques&&p.bloques[+el.dataset.bi]) p.bloques[+el.dataset.bi].texto=val;
       });
       const raw=JSON.stringify(currentData,null,2);
-      $("#jsonInput").value=raw; $("#saveName").value=$("#saveName").value||nameFromMeta(currentData.meta);
+      setJson(raw); $("#saveName").value=$("#saveName").value||nameFromMeta(currentData.meta);
       localStorage.setItem("mrb_teleprompter",raw);
       return true;
     }
@@ -685,11 +693,27 @@
     const openScript=()=>{ closeIndex(); scr.classList.add("open"); if(!libLoaded) fetchLibrary(); };
     const closeScript=()=>scr.classList.remove("open");
 
+    // ---------- Editor JSON: números de línea ----------
+    function setJson(v){ $("#jsonInput").value=v; updateGutter(); }   // setea el valor y refresca la numeración
+    function updateGutter(){
+      const ta=$("#jsonInput"), g=$("#gutter"); if(!ta||!g) return;
+      const n=(ta.value.match(/\n/g)||[]).length+1;
+      let s=""; for(let i=1;i<=n;i++) s+=i+"\n";
+      g.textContent=s; g.scrollTop=ta.scrollTop;
+    }
+    // Convierte "position N" del error de JSON a "(línea L, col C)"
+    function annotateJsonError(msg){
+      const m=/position (\d+)/.exec(msg||""); if(!m) return msg;
+      const pos=+m[1], before=$("#jsonInput").value.slice(0,pos);
+      const line=(before.match(/\n/g)||[]).length+1, col=pos-before.lastIndexOf("\n");
+      return msg+"  → línea "+line+", columna "+col;
+    }
+
     // ---------- JSON ----------
     function loadJSON(showToast){
       const raw=$("#jsonInput").value.trim(); $("#jsonError").textContent="";
       if(!raw){ $("#jsonError").textContent="Pegá un JSON primero."; return; }
-      let data; try{ data=looseParse(raw); }catch(e){ $("#jsonError").textContent="JSON inválido: "+e.message; return; }
+      let data; try{ data=looseParse(raw); }catch(e){ $("#jsonError").textContent="JSON inválido: "+annotateJsonError(e.message); return; }
       const norm=normalize(data);
       if(!norm.piezas.length){ $("#jsonError").textContent='No encontré "piezas" (ni "bloques").'; return; }
       render(data); localStorage.setItem("mrb_teleprompter", raw);
@@ -769,7 +793,7 @@
         if(!res.ok) throw new Error("HTTP "+res.status);
         const row=await res.json();
         const txt=JSON.stringify(row.data,null,2);
-        $("#jsonInput").value=txt; $("#saveName").value=row.nombre||""; render(row.data);
+        setJson(txt); $("#saveName").value=row.nombre||""; render(row.data);
         localStorage.setItem(LS_GUION,txt); localStorage.setItem(LS_LASTID,id);
         toast("Cargado: "+(row.nombre||"guión")); closeScript();
       }catch(e){ setLibStatus("No se pudo cargar: "+e.message,"err"); }
@@ -778,7 +802,7 @@
     async function saveToCloud(){
       const raw=$("#jsonInput").value.trim();
       if(!raw){ setLibStatus("No hay guión para guardar.","err"); return; }
-      let data; try{ data=looseParse(raw); }catch(e){ setLibStatus("JSON inválido: "+e.message,"err"); return; }
+      let data; try{ data=looseParse(raw); }catch(e){ setLibStatus("JSON inválido: "+annotateJsonError(e.message),"err"); return; }
       if(!normalize(data).piezas.length){ setLibStatus('El guión no tiene "piezas".',"err"); return; }
       const nombre=($("#saveName").value.trim()) || nameFromMeta(data.meta) || "Guión";
       const existing=libCache.find(it=>(it.nombre||"").toLowerCase()===nombre.toLowerCase());
@@ -816,7 +840,7 @@
       const cached=localStorage.getItem(LS_GUION);
       const primed=cached?safeParse(cached):null;
       const use=primed||EJEMPLO;
-      $("#jsonInput").value = cached || JSON.stringify(EJEMPLO,null,2);
+      setJson(cached || JSON.stringify(EJEMPLO,null,2));
       $("#saveName").value = nameFromMeta(use.meta);
       render(use);
     }
@@ -876,8 +900,10 @@
     $("#apiBaseInput").onchange=e=>{ localStorage.setItem(LS_APIBASE,e.target.value.trim().replace(/\/+$/,"")); libLoaded=false; fetchLibrary(); };
     $("#tokenInput").onchange=e=>{ localStorage.setItem(LS_TOKEN,e.target.value.trim()); fetchLibrary(); };
     $("#btnApply").onclick=()=>loadJSON(true);
-    $("#btnExample").onclick=()=>{ $("#jsonInput").value=JSON.stringify(EJEMPLO,null,2); loadJSON(false); $("#saveName").value=nameFromMeta(EJEMPLO.meta); toast("Ejemplo cargado"); };
-    $("#btnFormat").onclick=()=>{ const d=safeParse($("#jsonInput").value); if(d){ $("#jsonInput").value=JSON.stringify(d,null,2); $("#jsonError").textContent=""; } else $("#jsonError").textContent="No se puede formatear: JSON inválido."; };
+    $("#btnExample").onclick=()=>{ setJson(JSON.stringify(EJEMPLO,null,2)); loadJSON(false); $("#saveName").value=nameFromMeta(EJEMPLO.meta); toast("Ejemplo cargado"); };
+    $("#btnFormat").onclick=()=>{ const d=safeParse($("#jsonInput").value); if(d){ setJson(JSON.stringify(d,null,2)); $("#jsonError").textContent=""; } else { try{ looseParse($("#jsonInput").value); }catch(e){ $("#jsonError").textContent="No se puede formatear: "+annotateJsonError(e.message); } } };
+    $("#jsonInput").addEventListener("input",updateGutter);
+    $("#jsonInput").addEventListener("scroll",()=>{ $("#gutter").scrollTop=$("#jsonInput").scrollTop; });
     $("#btnCopyTemplate").onclick=()=>{
       const plantilla={ meta:{ influencer:"", handle:"", marca:"", semana:1, registro:"voseo_ar",
           distribucion_objetivo:{ problema:50, solucion:30, otros:20, producto:"condimento" } },
@@ -913,7 +939,7 @@
       toast(parsed?("Guardado: "+a.download):"Guardado (¡ojo: el JSON tiene un error!)");
     };
     $("#fileInput").onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
-      r.onload=()=>{ $("#jsonInput").value=r.result; const d=safeParse(r.result);
+      r.onload=()=>{ setJson(r.result); const d=safeParse(r.result);
         $("#saveName").value=(d&&nameFromMeta(d.meta))||f.name.replace(/\.json$/i,"");
         loadJSON(false); toast("Importado: "+f.name+" — ahora ☁️ Guardar en la nube"); e.target.value=""; }; r.readAsText(f); };
 
