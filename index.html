@@ -85,7 +85,8 @@
       padding:.15em .7em; font-size:.85em; color:var(--faint); }
     .b-guia { font-family:var(--font); font-size:.5em; font-weight:300; font-style:italic;
       color:var(--muted); margin-bottom:.4em; padding-left:.9em; border-left:2px solid var(--rule); }
-    .b-texto { font-weight:500; color:var(--fg); }
+    .b-texto { font-weight:500; color:var(--fg); white-space:pre-wrap; }
+    .pieza-titulo { white-space:pre-wrap; }
 
     /* Hook: la apertura, con regla superior fina (línea "sistema") */
     .b-hook { padding-top:.15em; }
@@ -652,7 +653,7 @@
     function commitEdits(){
       if(!currentData) return false;
       script.querySelectorAll("[data-edit]").forEach(el=>{
-        const val=el.innerText.replace(/ /g," ").replace(/\n{3,}/g,"\n\n").trim();
+        const val=el.innerText.replace(/\u00a0/g," ").replace(/\r\n?/g,"\n").replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
         const p=currentData.piezas&&currentData.piezas[+el.dataset.pi]; if(!p) return;
         if(el.dataset.edit==="titulo") p.titulo=val;
         else if(el.dataset.edit==="texto"&&p.bloques&&p.bloques[+el.dataset.bi]) p.bloques[+el.dataset.bi].texto=val;
